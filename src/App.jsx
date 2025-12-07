@@ -317,7 +317,7 @@ function App() {
                     <span className="order-id" onClick={() => setSelectedOrder(order)}>
                       {order.order_id}
                     </span>
-                    {order.is_trusted_customer && <span className="trusted-badge">TRUSTED</span>}
+                    {/* Trusted badge removed per user request */}
                   </td>
                   <td className="action-btns">
                     <a 
