@@ -672,3 +672,13 @@ body {
   font-size: 0.875rem;
   line-height: 1.5;
 }
+
+/* Archived orders */
+.archived-banner {
+  background: #c8e6c9;
+  color: #2e7d32;
+  padding: 0.5rem 1rem;
+  text-align: center;
+  font-weight: 500;
+  border-bottom: 1px solid #a5d6a7;
+}
