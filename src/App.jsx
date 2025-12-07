@@ -51,10 +51,10 @@ function App() {
   // Load data when logged in
   useEffect(() => {
     if (isLoggedIn) {
-      loadOrders(showArchived)
+      loadOrders()
       loadAlerts()
     }
-  }, [isLoggedIn, showArchived])
+  }, [isLoggedIn])
   
   const handleLogin = (e) => {
     e.preventDefault()
@@ -72,10 +72,11 @@ function App() {
     localStorage.removeItem('cfc_logged_in')
   }
   
-  const loadOrders = async (includeComplete = false) => {
+  const loadOrders = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${API_URL}/orders?limit=200&include_complete=${includeComplete}`)
+      // Always load all orders, filter client-side
+      const res = await fetch(`${API_URL}/orders?limit=200&include_complete=true`)
       const data = await res.json()
       if (data.orders) {
         setOrders(data.orders)
@@ -178,9 +179,16 @@ function App() {
   }, {})
   
   // Filter orders
-  const filteredOrders = statusFilter
-    ? orders.filter(o => o.current_status === statusFilter)
-    : orders
+  let filteredOrders = orders
+  if (showArchived) {
+    // Only show completed orders
+    filteredOrders = orders.filter(o => o.current_status === 'complete' || o.is_complete)
+  } else if (statusFilter) {
+    filteredOrders = orders.filter(o => o.current_status === statusFilter)
+  } else {
+    // Hide completed from main view
+    filteredOrders = orders.filter(o => o.current_status !== 'complete' && !o.is_complete)
+  }
   
   // Login screen
   if (!isLoggedIn) {
@@ -251,51 +259,51 @@ function App() {
       {/* Stats Bar */}
       <div className="stats-bar">
         <div
-          className={`stat-card ${statusFilter === null ? 'active' : ''}`}
+          className={`stat-card ${statusFilter === null && !showArchived ? 'active' : ''}`}
           style={{background: '#e0e0e0'}}
-          onClick={() => setStatusFilter(null)}
+          onClick={() => { setShowArchived(false); setStatusFilter(null); }}
         >
-          <div className="count">{orders.length}</div>
+          <div className="count">{orders.filter(o => o.current_status !== 'complete' && !o.is_complete).length}</div>
           <div className="label">All</div>
         </div>
         <div
-          className={`stat-card status-needs-invoice ${statusFilter === 'needs_payment_link' ? 'active' : ''}`}
-          onClick={() => setStatusFilter(statusFilter === 'needs_payment_link' ? null : 'needs_payment_link')}
+          className={`stat-card status-needs-invoice ${statusFilter === 'needs_payment_link' && !showArchived ? 'active' : ''}`}
+          onClick={() => { setShowArchived(false); setStatusFilter(statusFilter === 'needs_payment_link' ? null : 'needs_payment_link'); }}
         >
           <div className="count">{statusCounts['needs_payment_link'] || 0}</div>
           <div className="label">Need Invoice</div>
         </div>
         <div
-          className={`stat-card status-awaiting-pay ${statusFilter === 'awaiting_payment' ? 'active' : ''}`}
-          onClick={() => setStatusFilter(statusFilter === 'awaiting_payment' ? null : 'awaiting_payment')}
+          className={`stat-card status-awaiting-pay ${statusFilter === 'awaiting_payment' && !showArchived ? 'active' : ''}`}
+          onClick={() => { setShowArchived(false); setStatusFilter(statusFilter === 'awaiting_payment' ? null : 'awaiting_payment'); }}
         >
           <div className="count">{statusCounts['awaiting_payment'] || 0}</div>
           <div className="label">Awaiting Pay</div>
         </div>
         <div
-          className={`stat-card status-needs-order ${statusFilter === 'needs_warehouse_order' ? 'active' : ''}`}
-          onClick={() => setStatusFilter(statusFilter === 'needs_warehouse_order' ? null : 'needs_warehouse_order')}
+          className={`stat-card status-needs-order ${statusFilter === 'needs_warehouse_order' && !showArchived ? 'active' : ''}`}
+          onClick={() => { setShowArchived(false); setStatusFilter(statusFilter === 'needs_warehouse_order' ? null : 'needs_warehouse_order'); }}
         >
           <div className="count">{statusCounts['needs_warehouse_order'] || 0}</div>
           <div className="label">Need to Order</div>
         </div>
         <div
-          className={`stat-card status-at-warehouse ${statusFilter === 'awaiting_warehouse' ? 'active' : ''}`}
-          onClick={() => setStatusFilter(statusFilter === 'awaiting_warehouse' ? null : 'awaiting_warehouse')}
+          className={`stat-card status-at-warehouse ${statusFilter === 'awaiting_warehouse' && !showArchived ? 'active' : ''}`}
+          onClick={() => { setShowArchived(false); setStatusFilter(statusFilter === 'awaiting_warehouse' ? null : 'awaiting_warehouse'); }}
         >
           <div className="count">{statusCounts['awaiting_warehouse'] || 0}</div>
           <div className="label">At Warehouse</div>
         </div>
         <div
-          className={`stat-card status-needs-bol ${statusFilter === 'needs_bol' ? 'active' : ''}`}
-          onClick={() => setStatusFilter(statusFilter === 'needs_bol' ? null : 'needs_bol')}
+          className={`stat-card status-needs-bol ${statusFilter === 'needs_bol' && !showArchived ? 'active' : ''}`}
+          onClick={() => { setShowArchived(false); setStatusFilter(statusFilter === 'needs_bol' ? null : 'needs_bol'); }}
         >
           <div className="count">{statusCounts['needs_bol'] || 0}</div>
           <div className="label">Need BOL</div>
         </div>
         <div
-          className={`stat-card status-ready-ship ${statusFilter === 'awaiting_shipment' ? 'active' : ''}`}
-          onClick={() => setStatusFilter(statusFilter === 'awaiting_shipment' ? null : 'awaiting_shipment')}
+          className={`stat-card status-ready-ship ${statusFilter === 'awaiting_shipment' && !showArchived ? 'active' : ''}`}
+          onClick={() => { setShowArchived(false); setStatusFilter(statusFilter === 'awaiting_shipment' ? null : 'awaiting_shipment'); }}
         >
           <div className="count">{statusCounts['awaiting_shipment'] || 0}</div>
           <div className="label">Ready Ship</div>
@@ -303,10 +311,10 @@ function App() {
         <div
           className={`stat-card ${showArchived ? 'active' : ''}`}
           style={{background: showArchived ? '#a5d6a7' : '#c8e6c9'}}
-          onClick={() => setShowArchived(!showArchived)}
+          onClick={() => { setShowArchived(!showArchived); setStatusFilter(null); }}
         >
-          <div className="count">📦</div>
-          <div className="label">{showArchived ? 'Show Active' : 'Archived'}</div>
+          <div className="count">{statusCounts['complete'] || 0}</div>
+          <div className="label">Archived</div>
         </div>
       </div>
       
@@ -393,21 +401,15 @@ function App() {
                     <select
                       className="status-select"
                       value={order.current_status}
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const newStatus = e.target.value
-                        // Map status back to checkpoint
-                        if (newStatus === 'complete') {
-                          updateCheckpoint(order.order_id, 'is_complete')
-                        } else if (newStatus === 'awaiting_payment') {
-                          updateCheckpoint(order.order_id, 'payment_link_sent')
-                        } else if (newStatus === 'needs_warehouse_order') {
-                          updateCheckpoint(order.order_id, 'payment_received')
-                        } else if (newStatus === 'awaiting_warehouse') {
-                          updateCheckpoint(order.order_id, 'sent_to_warehouse')
-                        } else if (newStatus === 'needs_bol') {
-                          updateCheckpoint(order.order_id, 'warehouse_confirmed')
-                        } else if (newStatus === 'awaiting_shipment') {
-                          updateCheckpoint(order.order_id, 'bol_sent')
+                        try {
+                          await fetch(`${API_URL}/orders/${order.order_id}/set-status?status=${newStatus}&source=web_ui`, {
+                            method: 'PATCH'
+                          })
+                          loadOrders()
+                        } catch (err) {
+                          console.error('Failed to update status:', err)
                         }
                       }}
                     >
