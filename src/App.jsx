@@ -332,6 +332,24 @@ function App() {
                         <line x1="12" y1="15" x2="12" y2="3"/>
                       </svg>
                     </a>
+                    <a 
+                      href={`https://script.google.com/macros/s/AKfycbwPLACEHOLDER/exec?orderId=${order.order_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="icon-btn sheets-icon"
+                      title="Create Supplier Sheet"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="18" height="18" rx="2" fill="#0F9D58"/>
+                        <rect x="6" y="7" width="5" height="3" fill="white"/>
+                        <rect x="13" y="7" width="5" height="3" fill="white"/>
+                        <rect x="6" y="11" width="5" height="3" fill="white"/>
+                        <rect x="13" y="11" width="5" height="3" fill="white"/>
+                        <rect x="6" y="15" width="5" height="3" fill="white"/>
+                        <rect x="13" y="15" width="5" height="3" fill="white"/>
+                      </svg>
+                    </a>
                   </td>
                   <td>{order.company_name || order.customer_name}</td>
                   <td className="money hide-mobile">{formatMoney(order.order_total)}</td>
