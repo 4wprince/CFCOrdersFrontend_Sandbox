@@ -846,3 +846,52 @@ body {
     justify-content: flex-start;
   }
 }
+
+/* === SNAP TIP === */
+.snap-tip {
+  background: #e3f2fd;
+  border: 1px solid #90caf9;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.snap-tip-content {
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.snap-tip kbd {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+.snap-tip-dismiss {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #666;
+  cursor: pointer;
+}
+
+/* === AI SUMMARY === */
+.ai-summary {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* === BOX TRUCK HELPER === */
+.boxtruck-helper {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}

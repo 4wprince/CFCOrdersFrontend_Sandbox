@@ -1,6 +1,7 @@
 /**
  * StatusBar.jsx
  * Top status filter buttons with counts
+ * v5.8.4 - Show Completed as button not checkbox
  */
 
 const STATUS_MAP = {
@@ -28,8 +29,11 @@ const StatusBar = ({ orders, activeFilter, onFilterChange, showArchived, onToggl
     <div className="status-bar">
       <div className="status-filters">
         <button 
-          className={`filter-btn ${!activeFilter ? 'active' : ''}`}
-          onClick={() => onFilterChange(null)}
+          className={`filter-btn ${!activeFilter && !showArchived ? 'active' : ''}`}
+          onClick={() => {
+            onFilterChange(null)
+            onToggleArchived(false)
+          }}
         >
           All Active ({activeCount})
         </button>
@@ -38,22 +42,24 @@ const StatusBar = ({ orders, activeFilter, onFilterChange, showArchived, onToggl
           <button 
             key={key}
             className={`filter-btn status-${value.class} ${activeFilter === key ? 'active' : ''}`}
-            onClick={() => onFilterChange(key)}
+            onClick={() => {
+              onFilterChange(key)
+              onToggleArchived(false)
+            }}
           >
             {value.label} ({counts[key] || 0})
           </button>
         ))}
-      </div>
-      
-      <div className="archive-toggle">
-        <label>
-          <input 
-            type="checkbox"
-            checked={showArchived}
-            onChange={(e) => onToggleArchived(e.target.checked)}
-          />
-          Show Complete ({completeCount})
-        </label>
+        
+        <button 
+          className={`filter-btn archived-btn ${showArchived ? 'active' : ''}`}
+          onClick={() => {
+            onToggleArchived(!showArchived)
+            onFilterChange(null)
+          }}
+        >
+          Archived ({completeCount})
+        </button>
       </div>
     </div>
   )

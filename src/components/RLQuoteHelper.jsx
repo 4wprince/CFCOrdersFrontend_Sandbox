@@ -1,13 +1,7 @@
 /**
  * RLQuoteHelper.jsx
  * Complete RL Carriers quote and BOL helper
- * 
- * Flow:
- * 1. Display origin/destination zips, weight, class
- * 2. User opens RL site, gets quote
- * 3. User enters quote number, price, URL
- * 4. Save quote data
- * 5. BOL Helper section for copy/paste to RL BOL form
+ * v5.8.4 - Opens RL in new tab via prop, quote URL save
  */
 
 import { useState } from 'react'
@@ -15,7 +9,7 @@ import { CustomerAddress, BillToAddress, CopyButton } from './CustomerAddress'
 
 const API_URL = 'https://cfc-backend-b83s.onrender.com'
 
-const RLQuoteHelper = ({ shipmentId, data, onClose, onSave }) => {
+const RLQuoteHelper = ({ shipmentId, data, onClose, onSave, onOpenRL }) => {
   const [quoteNumber, setQuoteNumber] = useState(data.existing_quote?.quote_number || '')
   const [quotePrice, setQuotePrice] = useState(data.existing_quote?.quote_price || '')
   const [quoteUrl, setQuoteUrl] = useState(data.existing_quote?.quote_url || '')
@@ -36,6 +30,7 @@ const RLQuoteHelper = ({ shipmentId, data, onClose, onSave }) => {
       if (quoteNumber) params.append('rl_quote_number', quoteNumber)
       if (quotePrice) params.append('rl_quote_price', quotePrice)
       if (customerPrice) params.append('rl_customer_price', customerPrice)
+      if (quoteUrl) params.append('quote_url', quoteUrl)
       
       await fetch(`${API_URL}/shipments/${shipmentId}?${params.toString()}`, { 
         method: 'PATCH' 
@@ -51,26 +46,16 @@ const RLQuoteHelper = ({ shipmentId, data, onClose, onSave }) => {
   }
   
   const openRLSite = () => {
-    const w = 800
-    const h = window.screen.height
-    const left = window.screen.width - w
-    window.open(
-      'https://www.rlcarriers.com/freight/shipping/rate-quote',
-      'RLQuote',
-      `width=${w},height=${h},left=${left},top=0,resizable=yes,scrollbars=yes`
-    )
+    if (onOpenRL) {
+      onOpenRL()
+    } else {
+      window.open('https://www.rlcarriers.com/freight/shipping/rate-quote', '_blank')
+    }
   }
   
   const openSavedQuote = () => {
     if (quoteUrl) {
-      const w = 800
-      const h = window.screen.height
-      const left = window.screen.width - w
-      window.open(
-        quoteUrl,
-        'RLQuote',
-        `width=${w},height=${h},left=${left},top=0,resizable=yes,scrollbars=yes`
-      )
+      window.open(quoteUrl, '_blank')
     }
   }
   

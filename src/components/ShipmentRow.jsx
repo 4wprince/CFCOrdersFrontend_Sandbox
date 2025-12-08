@@ -1,7 +1,7 @@
 /**
  * ShipmentRow.jsx
  * Display a single warehouse shipment with status, method, and actions
- * v5.8.3 - Added quote buttons for all methods, Li pricing, mailto tracking
+ * v5.8.4 - Shipping button for all methods, mailto from CFC email
  */
 
 import { useState } from 'react'
@@ -57,7 +57,7 @@ const ShipmentRow = ({
       if (onUpdate) onUpdate()
       
       // Open shipping manager for methods that need helpers
-      if (newMethod === 'LTL' || newMethod === 'Pirateship' || newMethod === 'LiDelivery') {
+      if (newMethod && newMethod !== 'Pickup') {
         onOpenShippingManager(shipment)
       }
     } catch (err) {
@@ -96,48 +96,45 @@ const ShipmentRow = ({
     const customerName = order?.customer_name || 'Valued Customer'
     const companyName = order?.company_name || customerName
     const orderId = order?.order_id || shipment.order_id
+    const firstName = customerName.split(' ')[0]
     
-    // Determine carrier
+    // Determine carrier and tracking URL
     let carrier = 'Freight'
     let trackingUrl = ''
+    
     if (shipment.ship_method === 'LTL') {
       carrier = 'RL Carriers'
       trackingUrl = `https://www.rlcarriers.com/freight/shipping/shipment-tracing?pro=${trackingNumber}`
-    } else if (shipment.ship_method === 'Pirateship') {
-      // Check if UPS or USPS based on tracking format
+    } else if (shipment.ship_method === 'Pirateship' || shipment.ship_method === 'BoxTruck') {
       if (trackingNumber.startsWith('1Z')) {
         carrier = 'UPS'
         trackingUrl = `https://www.ups.com/track?tracknum=${trackingNumber}`
-      } else {
+      } else if (trackingNumber.length === 22 || trackingNumber.length === 26) {
         carrier = 'USPS'
         trackingUrl = `https://tools.usps.com/go/TrackConfirmAction?tLabels=${trackingNumber}`
       }
     }
     
-    const subject = encodeURIComponent(`${companyName}, please see tracking information for order ${orderId}`)
-    const body = encodeURIComponent(
-      `Hey ${customerName.split(' ')[0]},\n\n` +
-      `Thank you for your business! Your order ${orderId} has been shipped.\n\n` +
-      `${carrier} Tracking Number: ${trackingNumber}\n` +
-      (trackingUrl ? `Track your shipment: ${trackingUrl}\n\n` : '\n') +
-      `Thank you for your business,\n` +
-      `The Cabinets For Contractors Team`
-    )
+    const subject = `${companyName}, please see tracking information for order ${orderId}`
     
-    window.open(`mailto:${customerEmail}?subject=${subject}&body=${body}`, '_blank')
+    const body = `Hey ${firstName},
+
+Thank you for your business! Your order ${orderId} has been shipped.
+
+${carrier} Tracking Number: ${trackingNumber}
+${trackingUrl ? `Track your shipment: ${trackingUrl}` : ''}
+
+Thank you for your business,
+The Cabinets For Contractors Team`
+    
+    // Open mailto - will open in default email client
+    const mailtoUrl = `mailto:${customerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    window.location.href = mailtoUrl
   }
   
-  const hasRlQuote = shipment.rl_quote_number
-  const hasLiQuote = shipment.li_quote_price
-  const hasQuote = hasRlQuote || hasLiQuote || shipment.quote_price
-  
-  // Get display price
-  const getQuoteDisplay = () => {
-    if (hasRlQuote) return `Q:${shipment.rl_quote_number}`
-    if (hasLiQuote) return `$${shipment.li_quote_price}`
-    if (shipment.quote_price) return `$${shipment.quote_price}`
-    return 'Quote'
-  }
+  // Check if shipment has any quote/price info
+  const hasQuoteInfo = shipment.rl_quote_number || shipment.rl_quote_price || 
+                       shipment.li_quote_price || shipment.quote_price
   
   return (
     <div className={`shipment-row ${updating ? 'updating' : ''}`}>
@@ -167,18 +164,18 @@ const ShipmentRow = ({
           ))}
         </select>
         
-        {/* Quote/Manage button - show for LTL, Pirateship, LiDelivery */}
-        {(shipment.ship_method === 'LTL' || shipment.ship_method === 'Pirateship' || shipment.ship_method === 'LiDelivery') && (
+        {/* Shipping button - show for all methods except Pickup */}
+        {shipment.ship_method && shipment.ship_method !== 'Pickup' && (
           <button 
-            className={`btn btn-sm ${hasQuote ? 'btn-quoted' : 'btn-quote'}`}
+            className={`btn btn-sm ${hasQuoteInfo ? 'btn-quoted' : 'btn-quote'}`}
             onClick={() => onOpenShippingManager(shipment)}
           >
-            {getQuoteDisplay()}
+            Shipping
           </button>
         )}
         
         {/* Tracking input/display */}
-        {shipment.ship_method && shipment.ship_method !== 'Pickup' && (
+        {shipment.ship_method && shipment.ship_method !== 'Pickup' && shipment.ship_method !== 'LiDelivery' && (
           <>
             {shipment.tracking_number ? (
               <button 
@@ -200,7 +197,7 @@ const ShipmentRow = ({
         )}
       </div>
       
-      {/* Tracking input modal */}
+      {/* Tracking input row */}
       {showTrackingInput && (
         <div className="tracking-input-row">
           <input 
