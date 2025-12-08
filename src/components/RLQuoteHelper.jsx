@@ -51,7 +51,7 @@ const RLQuoteHelper = ({ shipmentId, data, onClose, onSave }) => {
   }
   
   const openRLSite = () => {
-    const w = 700
+    const w = 800
     const h = window.screen.height
     const left = window.screen.width - w
     window.open(
@@ -59,6 +59,19 @@ const RLQuoteHelper = ({ shipmentId, data, onClose, onSave }) => {
       'RLQuote',
       `width=${w},height=${h},left=${left},top=0,resizable=yes,scrollbars=yes`
     )
+  }
+  
+  const openSavedQuote = () => {
+    if (quoteUrl) {
+      const w = 800
+      const h = window.screen.height
+      const left = window.screen.width - w
+      window.open(
+        quoteUrl,
+        'RLQuote',
+        `width=${w},height=${h},left=${left},top=0,resizable=yes,scrollbars=yes`
+      )
+    }
   }
   
   return (
@@ -147,12 +160,19 @@ const RLQuoteHelper = ({ shipmentId, data, onClose, onSave }) => {
         
         <div className="input-group full-width">
           <label>Quote URL (from Recent Activity):</label>
-          <input 
-            type="text"
-            value={quoteUrl}
-            onChange={(e) => setQuoteUrl(e.target.value)}
-            placeholder="https://www.rlcarriers.com/freight/shipping/rate-quote?id=..."
-          />
+          <div className="url-input-row">
+            <input 
+              type="text"
+              value={quoteUrl}
+              onChange={(e) => setQuoteUrl(e.target.value)}
+              placeholder="https://www.rlcarriers.com/freight/shipping/rate-quote?id=..."
+            />
+            {quoteUrl && (
+              <button className="btn btn-sm btn-secondary" onClick={openSavedQuote}>
+                Open →
+              </button>
+            )}
+          </div>
         </div>
         
         <button 
@@ -168,10 +188,16 @@ const RLQuoteHelper = ({ shipmentId, data, onClose, onSave }) => {
       <div className="rl-section bol-helper">
         <h3>BOL Helper - Copy for RL Form</h3>
         
-        <CustomerAddress 
-          destination={data.destination} 
-          title="Ship To (Customer)"
-        />
+        <div className="address-section">
+          <h4>Ship To (Customer)</h4>
+          <CopyButton label="Company/Name" text={data.destination?.name} />
+          <CopyButton label="Street" text={data.destination?.street} />
+          <CopyButton label="City" text={data.destination?.city} />
+          <CopyButton label="State" text={data.destination?.state} />
+          <CopyButton label="ZIP" text={data.destination?.zip} />
+          <CopyButton label="Phone" text={data.destination?.phone} />
+          <CopyButton label="Email" text={data.destination?.email} />
+        </div>
         
         <BillToAddress />
         
