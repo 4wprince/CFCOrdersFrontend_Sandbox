@@ -174,8 +174,11 @@ const ShippingManager = ({
     }
   }
   
-  const openExternalSite = (url) => {
-    window.open(url, '_blank')
+const openExternalSite = (url) => {
+    const w = 800
+    const h = window.screen.height
+    const left = window.screen.width - w
+    window.open(url, 'ShippingQuote', `width=${w},height=${h},left=${left},top=0,resizable=yes,scrollbars=yes`)
   }
   
   const handleDismissTip = () => {
