@@ -319,7 +319,7 @@ const getFilteredOrders = () => {
               {selectedOrder.ai_summary && (
                 <div className="detail-section">
                   <h3>AI Summary</h3>
-                  <pre>{selectedOrder.ai_summary}</pre>
+                  <pre className="ai-summary">{selectedOrder.ai_summary}</pre>
                 </div>
               )}
             </div>
