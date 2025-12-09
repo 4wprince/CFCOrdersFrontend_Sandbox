@@ -165,7 +165,7 @@ const RLQuoteHelper = ({ shipmentId, data, onClose, onSave, onOpenRL }) => {
           onClick={handleSave}
           disabled={saving}
         >
-          {saving ? 'Saving...' : 'Save Quote'}
+          {saving ? 'Saving...' : (quoteUrl ? 'Open Quote' : 'Save Quote')}
         </button>
       </div>
       
