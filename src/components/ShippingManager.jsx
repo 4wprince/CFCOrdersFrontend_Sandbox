@@ -407,8 +407,12 @@ const openExternalSite = (url) => {
                 </button>
               </>
             )}
-          </div>
+</div>
         </div>
+      </div>
+    )
+  }
+
   // Li Delivery view
   if (view === 'lidelivery') {
     return (
