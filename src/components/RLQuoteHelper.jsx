@@ -32,7 +32,7 @@ const RLQuoteHelper = ({ shipmentId, data, onClose, onSave, onOpenRL }) => {
       if (customerPrice) params.append('rl_customer_price', customerPrice)
       if (quoteUrl) params.append('quote_url', quoteUrl)
       
-      await fetch(`${API_URL}/shipments/${shipmentId}?${params.toString()}`, { 
+      await fetch(`${API_URL}/shipments/${shipmentId}?${params.toString()}`, {
         method: 'PATCH' 
       })
       
@@ -160,9 +160,9 @@ const RLQuoteHelper = ({ shipmentId, data, onClose, onSave, onOpenRL }) => {
           </div>
         </div>
         
-        <button 
+         <button 
           className="btn btn-success" 
-          onClick={handleSave}
+          onClick={quoteUrl ? openSavedQuote : handleSave}
           disabled={saving}
         >
           {saving ? 'Saving...' : (quoteUrl ? 'Open Quote' : 'Save Quote')}
