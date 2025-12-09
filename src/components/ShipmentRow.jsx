@@ -165,17 +165,16 @@ The Cabinets For Contractors Team`
         </select>
         
         {/* Shipping button - show for all methods except Pickup */}
-        {shipment.ship_method && shipment.ship_method !== 'Pickup' && (
-          <button 
-            className={`btn btn-sm ${hasQuoteInfo ? 'btn-quoted' : 'btn-quote'}`}
-            onClick={() => onOpenShippingManager(shipment)}
-          >
-            Shipping
-          </button>
-        )}
+        {/* Shipping button - show for all shipments */}
+        <button 
+          className={`btn btn-sm ${hasQuoteInfo ? 'btn-quoted' : 'btn-quote'}`}
+          onClick={() => onOpenShippingManager(shipment)}
+        >
+          Shipping
+        </button>
         
         {/* Tracking input/display */}
-        {shipment.ship_method && shipment.ship_method !== 'Pickup' && shipment.ship_method !== 'LiDelivery' && (
+        {shipment.ship_method !== 'Pickup' && shipment.ship_method !== 'LiDelivery' && (
           <>
             {shipment.tracking_number ? (
               <button 
