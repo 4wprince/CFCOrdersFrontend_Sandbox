@@ -56,7 +56,10 @@ const RLQuoteHelper = ({ shipmentId, data, onClose, onSave, onOpenRL }) => {
   
   const openSavedQuote = () => {
     if (quoteUrl) {
-      window.open(quoteUrl, '_blank')
+      const w = 800
+      const h = window.screen.height
+      const left = window.screen.width - w
+      window.open(quoteUrl, 'ShippingQuote', `width=${w},height=${h},left=${left},top=0,resizable=yes,scrollbars=yes`)
     }
   }
   
