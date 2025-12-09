@@ -51,12 +51,14 @@ const OrderCard = ({
     let actualCostTotal = 0
     let allQuoted = true
     
-    order.shipments.forEach(s => {
+ order.shipments.forEach(s => {
       // Customer charge (what we charge)
       if (s.rl_customer_price) {
         customerChargeTotal += parseFloat(s.rl_customer_price)
       } else if (s.li_customer_price) {
         customerChargeTotal += parseFloat(s.li_customer_price)
+      } else if (s.customer_price) {
+        customerChargeTotal += parseFloat(s.customer_price)
       } else if (s.ship_method === 'Pickup') {
         // No charge for pickup
       } else {
@@ -68,11 +70,8 @@ const OrderCard = ({
         quotedTotal += parseFloat(s.rl_quote_price)
       } else if (s.li_quote_price) {
         quotedTotal += parseFloat(s.li_quote_price)
-      }
-      
-      // Actual billed (after shipment)
-      if (s.actual_cost) {
-        actualCostTotal += parseFloat(s.actual_cost)
+      } else if (s.quote_price) {
+        quotedTotal += parseFloat(s.quote_price)
       }
     })
     
