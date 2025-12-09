@@ -179,6 +179,11 @@ const openExternalSite = (url) => {
     const h = window.screen.height
     const left = window.screen.width - w
     window.open(url, 'ShippingQuote', `width=${w},height=${h},left=${left},top=0,resizable=yes,scrollbars=yes`)
+    
+    // Show tip if not dismissed
+    if (shouldShowSnapTip()) {
+      alert('💡 Tip: Press Win+← on this window, then Win+→ on the quote window to snap side-by-side')
+    }
   }
   
   const handleDismissTip = () => {
