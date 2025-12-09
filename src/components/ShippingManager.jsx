@@ -157,7 +157,7 @@ const ShippingManager = ({
     }
   }
   
-  const saveBoxTruckPricing = async () => {
+ const saveBoxTruckPricing = async () => {
     try {
       const params = new URLSearchParams()
       if (btCost) params.append('quote_price', btCost)
