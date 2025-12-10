@@ -72,9 +72,10 @@ const ShippingManager = ({
   const [btCost, setBtCost] = useState(shipment?.quote_price || '')
   const [btCharge, setBtCharge] = useState(shipment?.customer_price || '')
 
- // Pirateship quote URL
+// Pirateship quote
   const [psQuoteUrl, setPsQuoteUrl] = useState(shipment?.ps_quote_url || '')
-  const [psSaved, setPsSaved] = useState(!!shipment?.ps_quote_url)
+  const [psQuotePrice, setPsQuotePrice] = useState(shipment?.ps_quote_price || '')
+  const [psSaved, setPsSaved] = useState(!!shipment?.ps_quote_url || !!shipment?.ps_quote_price)
   
   // Mark tip as shown on mount
   useEffect(() => {
@@ -178,10 +179,11 @@ const ShippingManager = ({
     }
   }
 
-  const savePirateshipUrl = async () => {
+const savePirateshipQuote = async () => {
     try {
       const params = new URLSearchParams()
       if (psQuoteUrl) params.append('ps_quote_url', psQuoteUrl)
+      if (psQuotePrice) params.append('ps_quote_price', psQuotePrice)
       
       await fetch(`${API_URL}/shipments/${shipment.shipment_id}?${params.toString()}`, {
         method: 'PATCH'
@@ -190,7 +192,7 @@ const ShippingManager = ({
       setPsSaved(true)
       if (onUpdate) onUpdate()
     } catch (err) {
-      console.error('Failed to save Pirateship URL:', err)
+      console.error('Failed to save Pirateship quote:', err)
     }
   }
 
@@ -362,6 +364,18 @@ const openExternalSite = (url) => {
             </button>
           </div>
 
+          <div className="input-group">
+            <label>Shipping Cost ($):</label>
+            <input 
+              type="number"
+              step="0.01"
+              value={psQuotePrice}
+              onChange={(e) => setPsQuotePrice(e.target.value)}
+              placeholder="0.00"
+              disabled={psSaved}
+            />
+          </div>
+
           <div className="input-group full-width">
             <label>Quote URL (from Pirateship):</label>
             <div className="url-input-row">
@@ -377,6 +391,7 @@ const openExternalSite = (url) => {
 
           <div className="button-row">
             {psSaved ? (
+
               <>
                 <button 
                   className="btn btn-success" 
@@ -398,7 +413,7 @@ const openExternalSite = (url) => {
               <>
                 <button 
                   className="btn btn-success" 
-                  onClick={savePirateshipUrl}
+                  onClick={savePirateshipQuote}
                 >
                   Save Quote
                 </button>

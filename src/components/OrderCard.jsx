@@ -59,6 +59,8 @@ const OrderCard = ({
         customerChargeTotal += parseFloat(s.li_customer_price)
       } else if (s.customer_price) {
         customerChargeTotal += parseFloat(s.customer_price)
+      } else if (s.ps_quote_price) {
+        customerChargeTotal += parseFloat(s.ps_quote_price)
       } else if (s.ship_method === 'Pickup') {
         // No charge for pickup
       } else {
@@ -72,10 +74,13 @@ const OrderCard = ({
         quotedTotal += parseFloat(s.li_quote_price)
       } else if (s.quote_price) {
         quotedTotal += parseFloat(s.quote_price)
+      } else if (s.ps_quote_price) {
+        quotedTotal += parseFloat(s.ps_quote_price)
       }
     })
     
     return {
+
       quoted: quotedTotal,
       customerCharge: customerChargeTotal,
       actualCost: actualCostTotal,
