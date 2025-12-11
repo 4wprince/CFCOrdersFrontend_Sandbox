@@ -1,7 +1,7 @@
 /**
  * OrderComments.jsx
  * Display and edit internal notes for an order
- * v1.0.0 - Initial version
+ * v1.0.1 - Fixed fetch syntax
  */
 
 import { useState } from 'react'
