@@ -37,7 +37,7 @@ const OrderComments = ({ order, onUpdate }) => {
   const handleRefreshSummary = async () => {
     setIsRefreshingSummary(true)
     try {
-      await fetch`${API_URL}/orders/${order.order_id}/generate-summary?force=true`, {
+      await fetch(`${API_URL}/orders/${order.order_id}/generate-summary?force=true`, {
         method: 'POST'
       })
       if (onUpdate) onUpdate()
