@@ -189,6 +189,32 @@ body {
   color: #1a73e8;
 }
 
+.order-date {
+  font-size: 0.75rem;
+  color: #666;
+  margin-left: 8px;
+}
+
+.status-dropdown {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid;
+  cursor: pointer;
+  font-weight: 500;
+  outline: none;
+  margin-left: auto;
+}
+
+.status-dropdown:hover {
+  opacity: 0.8;
+}
+
+.status-dropdown:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .order-status {
   font-size: 0.75rem;
   padding: 2px 8px;
