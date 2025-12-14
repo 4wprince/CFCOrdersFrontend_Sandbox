@@ -1,7 +1,5 @@
 /**
- * ShipmentRow.jsx
- * Display a single warehouse shipment with status, method, and actions
- * v5.9.1 - Show shipping cost next to warehouse name
+ * ShipmentRow.jsx v5.9.2
  */
 
 import { useState } from 'react'
@@ -21,26 +19,20 @@ const METHOD_OPTIONS = [
   { value: 'Pirateship', label: 'Pirateship' },
   { value: 'Pickup', label: 'Pickup' },
   { value: 'BoxTruck', label: 'BoxTruck' },
-  { value: 'LiDelivery', label: 'LiDelivery' }
+  { value: 'LiDelivery', label: 'Li Delivery' }
 ]
 
-// Get shipping cost for this shipment
 const getShippingCost = (shipment) => {
-  const cost = 
-    Number(shipment.rl_customer_price) || 
-    Number(shipment.li_customer_price) || 
-    Number(shipment.customer_price) ||
-    Number(shipment.ps_quote_price) ||
-    0
-  return cost
+  const customerPrice = 
+    Number(shipment.rl_customer_price) || Number(shipment.li_customer_price) || 
+    Number(shipment.customer_price) || Number(shipment.ps_quote_price) || 0
+  if (customerPrice === 0) {
+    return Number(shipment.rl_quote_price) || Number(shipment.li_quote_price) || Number(shipment.quote_price) || 0
+  }
+  return customerPrice
 }
 
-const ShipmentRow = ({ 
-  shipment, 
-  order,
-  onOpenShippingManager,
-  onUpdate 
-}) => {
+const ShipmentRow = ({ shipment, order, onOpenShippingManager, onUpdate }) => {
   const [updating, setUpdating] = useState(false)
   const [showTrackingInput, setShowTrackingInput] = useState(false)
   const [trackingNumber, setTrackingNumber] = useState(shipment.tracking_number || '')
@@ -48,56 +40,32 @@ const ShipmentRow = ({
   const handleStatusChange = async (newStatus) => {
     setUpdating(true)
     try {
-      await fetch(`${API_URL}/shipments/${shipment.shipment_id}?status=${newStatus}`, {
-        method: 'PATCH'
-      })
+      await fetch(`${API_URL}/shipments/${shipment.shipment_id}?status=${newStatus}`, { method: 'PATCH' })
       if (onUpdate) onUpdate()
-    } catch (err) {
-      console.error('Failed to update status:', err)
-    }
+    } catch (err) { console.error('Failed to update status:', err) }
     setUpdating(false)
   }
   
   const handleMethodChange = async (newMethod) => {
     setUpdating(true)
     try {
-      await fetch(`${API_URL}/shipments/${shipment.shipment_id}?ship_method=${newMethod}`, {
-        method: 'PATCH'
-      })
+      await fetch(`${API_URL}/shipments/${shipment.shipment_id}?ship_method=${newMethod}`, { method: 'PATCH' })
       if (onUpdate) onUpdate()
-      
-      // Open shipping manager for methods that need helpers
-      if (newMethod && newMethod !== 'Pickup') {
-        onOpenShippingManager(shipment)
-      }
-    } catch (err) {
-      console.error('Failed to update method:', err)
-    }
+      if (newMethod && newMethod !== 'Pickup') onOpenShippingManager(shipment)
+    } catch (err) { console.error('Failed to update method:', err) }
     setUpdating(false)
   }
   
   const handleSaveTracking = async () => {
     if (!trackingNumber.trim()) return
-    
     setUpdating(true)
     try {
-      await fetch(`${API_URL}/shipments/${shipment.shipment_id}?tracking_number=${encodeURIComponent(trackingNumber)}`, {
-        method: 'PATCH'
-      })
-      
-      // Update status to shipped
-      await fetch(`${API_URL}/shipments/${shipment.shipment_id}?status=shipped`, {
-        method: 'PATCH'
-      })
-      
+      await fetch(`${API_URL}/shipments/${shipment.shipment_id}?tracking_number=${encodeURIComponent(trackingNumber)}`, { method: 'PATCH' })
+      await fetch(`${API_URL}/shipments/${shipment.shipment_id}?status=shipped`, { method: 'PATCH' })
       if (onUpdate) onUpdate()
       setShowTrackingInput(false)
-      
-      // Open mailto with tracking info
       sendTrackingEmail()
-    } catch (err) {
-      console.error('Failed to save tracking:', err)
-    }
+    } catch (err) { console.error('Failed to save tracking:', err) }
     setUpdating(false)
   }
   
@@ -107,132 +75,57 @@ const ShipmentRow = ({
     const companyName = order?.company_name || customerName
     const orderId = order?.order_id || shipment.order_id
     const firstName = customerName.split(' ')[0]
-    
-    let carrier = 'Freight'
-    let trackingUrl = ''
-    
+    let carrier = 'Freight', trackingUrl = ''
     if (shipment.ship_method === 'LTL') {
       carrier = 'RL Carriers'
       trackingUrl = `https://www.rlcarriers.com/freight/shipping/shipment-tracing?pro=${trackingNumber}`
     } else if (shipment.ship_method === 'Pirateship' || shipment.ship_method === 'BoxTruck') {
-      if (trackingNumber.startsWith('1Z')) {
-        carrier = 'UPS'
-        trackingUrl = `https://www.ups.com/track?tracknum=${trackingNumber}`
-      } else if (trackingNumber.length === 22 || trackingNumber.length === 26) {
-        carrier = 'USPS'
-        trackingUrl = `https://tools.usps.com/go/TrackConfirmAction?tLabels=${trackingNumber}`
-      }
+      if (trackingNumber.startsWith('1Z')) { carrier = 'UPS'; trackingUrl = `https://www.ups.com/track?tracknum=${trackingNumber}` }
+      else if (trackingNumber.length === 22 || trackingNumber.length === 26) { carrier = 'USPS'; trackingUrl = `https://tools.usps.com/go/TrackConfirmAction?tLabels=${trackingNumber}` }
     }
-    
     const subject = `${companyName}, please see tracking information for order ${orderId}`
-    
-    const body = `Hey ${firstName},
-
-Thank you for your business! Your order ${orderId} has been shipped.
-
-${carrier} Tracking Number: ${trackingNumber}
-${trackingUrl ? `Track your shipment: ${trackingUrl}` : ''}
-
-Thank you for your business,
-The Cabinets For Contractors Team`
-    
-    const mailtoUrl = `mailto:${customerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-    window.open(mailtoUrl, '_blank')
+    const body = `Hey ${firstName},\n\nThank you for your business! Your order ${orderId} has been shipped.\n\n${carrier} Tracking Number: ${trackingNumber}\n${trackingUrl ? `Track your shipment: ${trackingUrl}` : ''}\n\nThank you for your business,\nThe Cabinets For Contractors Team`
+    window.open(`mailto:${customerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank')
   }
   
-  // Check if shipment has any quote/price info
-  const hasQuoteInfo = shipment.rl_quote_number || shipment.rl_quote_price || 
-                       shipment.li_quote_price || shipment.quote_price || shipment.ps_quote_price
-  
-  // Get shipping cost to display
+  const hasQuoteInfo = shipment.rl_quote_number || shipment.rl_quote_price || shipment.li_quote_price || 
+                       shipment.quote_price || shipment.ps_quote_price || shipment.li_customer_price ||
+                       shipment.rl_customer_price || shipment.customer_price
   const shippingCost = getShippingCost(shipment)
+  const showTrackingButton = shipment.ship_method !== 'LiDelivery' && shipment.ship_method !== 'Pickup'
   
   return (
     <div className={`shipment-row ${updating ? 'updating' : ''}`}>
       <div className="shipment-warehouse">
         <strong>{shipment.warehouse}</strong>
-        {/* Show shipping cost next to warehouse name */}
-        {shippingCost > 0 && (
-          <span style={{ 
-            marginLeft: '8px', 
-            color: '#2e7d32', 
-            fontWeight: '600',
-            fontSize: '13px'
-          }}>
-            — ${shippingCost.toFixed(2)}
-          </span>
-        )}
-        {shipment.weight && <span className="weight" style={{ marginLeft: '8px', color: '#666', fontSize: '12px' }}>{shipment.weight} lbs</span>}
+        {shippingCost > 0 && <span style={{ marginLeft: '8px', color: '#2e7d32', fontWeight: '600', fontSize: '13px' }}>— ${shippingCost.toFixed(2)}</span>}
       </div>
       
-      <div className="shipment-controls">
-        <select 
-          value={shipment.status || 'pending'}
-          onChange={(e) => handleStatusChange(e.target.value)}
-          className="status-select"
-        >
-          {STATUS_OPTIONS.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
+      <div className="shipment-controls" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <select value={shipment.status || 'pending'} onChange={(e) => handleStatusChange(e.target.value)} className="status-select" style={{ minWidth: '90px' }}>
+          {STATUS_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
         </select>
         
-        <select 
-          value={shipment.ship_method || ''}
-          onChange={(e) => handleMethodChange(e.target.value)}
-          className="method-select"
-        >
-          {METHOD_OPTIONS.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
+        <select value={shipment.ship_method || ''} onChange={(e) => handleMethodChange(e.target.value)} className="method-select" style={{ minWidth: '100px' }}>
+          {METHOD_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
         </select>
         
-        {/* Shipping button */}
-        <button 
-          className={`btn btn-sm ${hasQuoteInfo ? 'btn-quoted' : 'btn-quote'}`}
-          onClick={() => onOpenShippingManager(shipment)}
-        >
-          Shipping
-        </button>
+        <button className={`btn btn-sm ${hasQuoteInfo ? 'btn-quoted' : 'btn-quote'}`} onClick={() => onOpenShippingManager(shipment)}>Shipping</button>
         
-        {/* Tracking input/display */}
-        {shipment.ship_method !== 'Pickup' && shipment.ship_method !== 'LiDelivery' && (
-          <>
-            {shipment.tracking_number ? (
-              <button 
-                className="btn btn-sm btn-tracking"
-                onClick={() => setShowTrackingInput(true)}
-                title={shipment.tracking_number}
-              >
-                📦 {shipment.tracking_number.slice(-6)}
-              </button>
-            ) : (
-              <button 
-                className="btn btn-sm btn-track-entry"
-                onClick={() => setShowTrackingInput(true)}
-              >
-                + Track
-              </button>
-            )}
-          </>
+        {showTrackingButton && (
+          shipment.tracking_number ? (
+            <button className="btn btn-sm btn-tracking" onClick={() => setShowTrackingInput(true)} title={shipment.tracking_number}>📦 {shipment.tracking_number.slice(-6)}</button>
+          ) : (
+            <button className="btn btn-sm btn-track-entry" onClick={() => setShowTrackingInput(true)}>+ Track</button>
+          )
         )}
       </div>
       
-      {/* Tracking input row */}
       {showTrackingInput && (
         <div className="tracking-input-row">
-          <input 
-            type="text"
-            value={trackingNumber}
-            onChange={(e) => setTrackingNumber(e.target.value)}
-            placeholder="Enter tracking/PRO number..."
-            autoFocus
-          />
-          <button className="btn btn-sm btn-success" onClick={handleSaveTracking}>
-            Save & Email
-          </button>
-          <button className="btn btn-sm" onClick={() => setShowTrackingInput(false)}>
-            ✕
-          </button>
+          <input type="text" value={trackingNumber} onChange={(e) => setTrackingNumber(e.target.value)} placeholder="Enter tracking/PRO number..." autoFocus />
+          <button className="btn btn-sm btn-success" onClick={handleSaveTracking}>Save & Email</button>
+          <button className="btn btn-sm" onClick={() => setShowTrackingInput(false)}>✕</button>
         </div>
       )}
     </div>

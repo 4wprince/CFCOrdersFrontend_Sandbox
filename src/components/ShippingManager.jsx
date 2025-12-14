@@ -256,7 +256,7 @@ const ShippingManager = ({
             style={{ padding: '12px', borderRadius: '8px', border: '2px solid #ccc', cursor: 'pointer', textAlign: 'left' }}
           >
             <span style={{ fontSize: '20px' }}>🚐</span>
-            <div style={{ fontWeight: '600' }}>Li Delivery</div>
+            <div style={{ fontWeight: '600' }}>Li_Delivery</div>
             <div style={{ fontSize: '12px', color: '#666' }}>Li handles shipping</div>
           </button>
         </div>
@@ -392,11 +392,11 @@ const ShippingManager = ({
       <div className="shipping-manager">
         <div className="manager-header" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
           <button className="btn btn-back" onClick={() => setView('select')} style={{ padding: '6px 12px' }}>← Change Method</button>
-          <span style={{ fontWeight: '600' }}>Li Delivery</span>
+          <span style={{ fontWeight: '600' }}>Li_Delivery</span>
         </div>
         
         <div className="li-delivery-helper" style={{ width: '100%' }}>
-          <h3 style={{ marginBottom: '8px' }}>Li Delivery Pricing</h3>
+          <h3 style={{ marginBottom: '8px' }}>Li_Delivery Pricing</h3>
           <p style={{ color: '#666', fontSize: '13px', marginBottom: '16px' }}>Li handles delivery. Enter cost and customer charge for tracking.</p>
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
