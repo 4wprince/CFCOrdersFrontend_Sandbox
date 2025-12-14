@@ -217,24 +217,26 @@ function App() {
         onToggleArchived={setShowArchived}
       />
       
-      {/* Orders Grid */}
-      <main className="orders-grid">
-        {loading ? (
-          <div className="loading">Loading orders...</div>
-        ) : filteredOrders.length === 0 ? (
-          <div className="empty">No orders found</div>
-        ) : (
-          filteredOrders.map(order => (
-            <OrderCard 
-              key={order.order_id}
-              order={order}
-              onOpenDetail={openOrderDetail}
-              onOpenShippingManager={(shipment) => openShippingManager(shipment, order)}
-              onUpdate={loadOrders}
-            />
-          ))
-        )}
-      </main>
+{/* Orders Grid */}
+<main className="orders-grid">
+  {loading ? (
+    <div className="loading">Loading orders...</div>
+  ) : !Array.isArray(filteredOrders) ? (
+    <div className="loading">Loading orders...</div>
+  ) : filteredOrders.length === 0 ? (
+    <div className="empty">No orders found</div>
+  ) : (
+    filteredOrders.map(order => (
+      <OrderCard
+        key={order.order_id}
+        order={order}
+        onOpenDetail={openOrderDetail}
+        onOpenShippingManager={(shipment) => openShippingManager(shipment, order)}
+        onUpdate={loadOrders}
+      />
+    ))
+  )}
+</main>
       
       {/* Order Detail Modal */}
       {selectedOrder && (
