@@ -48,12 +48,8 @@ const STATUS_OPTIONS = [
   { value: 'complete', label: 'Complete' }
 ]
 
-const OrderCard = ({
-  order,
-  onOpenDetail,
-  onOpenShippingManager,
-  onUpdate
-}) => {
+const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => {
+  if (!order) return null
   const [isUpdating, setIsUpdating] = useState(false)
   const status = STATUS_MAP[order.current_status] || STATUS_MAP['needs_payment_link']
 
@@ -193,7 +189,7 @@ return (
       {/* Shipments section */}
       {order.shipments && order.shipments.length > 0 && (
         <div className="order-shipments">
-          {order.shipments.map((shipment, i) => (
+          {(order.shipments || []).map((shipment, i) =>
             <ShipmentRow
               key={shipment.shipment_id || i}
               shipment={shipment}
