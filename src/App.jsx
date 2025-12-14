@@ -172,31 +172,25 @@ function App() {
   
   // === RENDER: LOGIN ===
   
-  if (!isLoggedIn) {
-    return (
-      <div className="login-container">
-        <form onSubmit={handleLogin} className="login-form">
-          <h1>CFC Orders</h1>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter password"
-            autoFocus
-          />
-          <button type="submit">Login</button>
-          {loginError && <div className="error">{loginError}</div>}
-        </form>
-      </div>
-    )
-  }
-  
-  // === RENDER: MAIN APP ===
-  
-  const filteredOrders = getFilteredOrders()
-  
-  return (
-    <div className="app">
+if (!isLoggedIn) {
+  return ( ...login... )
+}
+
+// ✅ Gate main app render until orders are ready
+if (loading) {
+  return <div className="loading">Loading orders...</div>
+}
+
+if (!Array.isArray(orders)) {
+  return <div className="loading">Loading orders...</div>
+}
+
+// === RENDER: MAIN APP ===
+
+const filteredOrders = getFilteredOrders()
+
+return (
+  <div className="app">
       {/* Header */}
       <header className="app-header">
         <h1>CFC Orders</h1>
