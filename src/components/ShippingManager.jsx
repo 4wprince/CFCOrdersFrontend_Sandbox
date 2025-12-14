@@ -1,7 +1,7 @@
 /**
  * ShippingManager.jsx
  * Central hub for shipping method selection and routing
- * v5.9.0 - Fixed routing for all methods
+ * v5.9.1 - Opens in new window (not tab), fixed Li Delivery layout
  */
 
 import { useState, useEffect } from 'react'
@@ -165,7 +165,7 @@ const ShippingManager = ({
 
   const openPirateshipQuote = () => {
     if (psQuoteUrl) {
-      window.open(psQuoteUrl, '_blank')
+      openNewWindow(psQuoteUrl)
     }
   }
 
@@ -173,8 +173,33 @@ const ShippingManager = ({
     setPsSaved(false)
   }
 
-  const openExternalSite = (url) => {
-    window.open(url, '_blank')
+  // Open in NEW WINDOW (not tab) - snapped to right side of screen
+  const openNewWindow = (url) => {
+    const width = 800
+    const height = window.screen.height
+    const left = window.screen.width - width
+    window.open(url, 'ShippingQuote', `width=${width},height=${height},left=${left},top=0,resizable=yes,scrollbars=yes`)
+  }
+
+  // Common input styles
+  const inputStyle = {
+    width: '100%',
+    padding: '8px 10px',
+    border: '1px solid #ccc',
+    borderRadius: '4px',
+    fontSize: '14px',
+    marginTop: '4px'
+  }
+
+  const labelStyle = {
+    display: 'block',
+    marginBottom: '4px',
+    fontWeight: '600',
+    fontSize: '13px'
+  }
+
+  const inputGroupStyle = {
+    marginBottom: '12px'
   }
   
   // === METHOD SELECTION VIEW ===
@@ -184,50 +209,55 @@ const ShippingManager = ({
         <h3>Select Shipping Method</h3>
         <p className="subtitle">Warehouse: {shipment.warehouse}</p>
         
-        <div className="method-grid">
+        <div className="method-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginTop: '16px' }}>
           <button 
             className={`method-btn ${method === 'LTL' ? 'active' : ''}`}
             onClick={() => handleMethodChange('LTL')}
+            style={{ padding: '12px', borderRadius: '8px', border: '2px solid #ccc', cursor: 'pointer', textAlign: 'left' }}
           >
-            <span className="method-icon">🚛</span>
-            <span className="method-name">LTL (RL Carriers)</span>
-            <span className="method-desc">Freight shipping</span>
+            <span style={{ fontSize: '20px' }}>🚛</span>
+            <div style={{ fontWeight: '600' }}>LTL (RL Carriers)</div>
+            <div style={{ fontSize: '12px', color: '#666' }}>Freight shipping</div>
           </button>
           
           <button 
             className={`method-btn ${method === 'Pirateship' ? 'active' : ''}`}
             onClick={() => handleMethodChange('Pirateship')}
+            style={{ padding: '12px', borderRadius: '8px', border: '2px solid #ccc', cursor: 'pointer', textAlign: 'left' }}
           >
-            <span className="method-icon">📦</span>
-            <span className="method-name">Pirateship</span>
-            <span className="method-desc">UPS/USPS parcels</span>
+            <span style={{ fontSize: '20px' }}>📦</span>
+            <div style={{ fontWeight: '600' }}>Pirateship</div>
+            <div style={{ fontSize: '12px', color: '#666' }}>UPS/USPS parcels</div>
           </button>
           
           <button 
             className={`method-btn ${method === 'BoxTruck' ? 'active' : ''}`}
             onClick={() => handleMethodChange('BoxTruck')}
+            style={{ padding: '12px', borderRadius: '8px', border: '2px solid #ccc', cursor: 'pointer', textAlign: 'left' }}
           >
-            <span className="method-icon">🚚</span>
-            <span className="method-name">Box Truck</span>
-            <span className="method-desc">Local delivery</span>
+            <span style={{ fontSize: '20px' }}>🚚</span>
+            <div style={{ fontWeight: '600' }}>Box Truck</div>
+            <div style={{ fontSize: '12px', color: '#666' }}>Local delivery</div>
           </button>
           
           <button 
             className={`method-btn ${method === 'Pickup' ? 'active' : ''}`}
             onClick={() => handleMethodChange('Pickup')}
+            style={{ padding: '12px', borderRadius: '8px', border: '2px solid #ccc', cursor: 'pointer', textAlign: 'left' }}
           >
-            <span className="method-icon">🏪</span>
-            <span className="method-name">Pickup</span>
-            <span className="method-desc">Customer picks up</span>
+            <span style={{ fontSize: '20px' }}>🏪</span>
+            <div style={{ fontWeight: '600' }}>Pickup</div>
+            <div style={{ fontSize: '12px', color: '#666' }}>Customer picks up</div>
           </button>
           
           <button 
             className={`method-btn ${method === 'LiDelivery' ? 'active' : ''}`}
             onClick={() => handleMethodChange('LiDelivery')}
+            style={{ padding: '12px', borderRadius: '8px', border: '2px solid #ccc', cursor: 'pointer', textAlign: 'left' }}
           >
-            <span className="method-icon">🚐</span>
-            <span className="method-name">Li Delivery</span>
-            <span className="method-desc">Li handles shipping</span>
+            <span style={{ fontSize: '20px' }}>🚐</span>
+            <div style={{ fontWeight: '600' }}>Li Delivery</div>
+            <div style={{ fontSize: '12px', color: '#666' }}>Li handles shipping</div>
           </button>
         </div>
       </div>
@@ -251,9 +281,9 @@ const ShippingManager = ({
     
     return (
       <div className="shipping-manager">
-        <div className="manager-header">
-          <button className="btn btn-back" onClick={() => setView('select')}>← Change Method</button>
-          <span className="current-method">LTL (RL Carriers)</span>
+        <div className="manager-header" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <button className="btn btn-back" onClick={() => setView('select')} style={{ padding: '6px 12px' }}>← Change Method</button>
+          <span style={{ fontWeight: '600' }}>LTL (RL Carriers)</span>
         </div>
         
         <RLQuoteHelper 
@@ -261,7 +291,7 @@ const ShippingManager = ({
           data={rlData}
           onClose={onClose}
           onSave={handleSave}
-          onOpenRL={() => openExternalSite('https://www.rlcarriers.com/freight/shipping/rate-quote')}
+          onOpenRL={() => openNewWindow('https://www.rlcarriers.com/freight/shipping/rate-quote')}
         />
       </div>
     )
@@ -271,30 +301,39 @@ const ShippingManager = ({
   if (view === 'pirateship') {
     return (
       <div className="shipping-manager">
-        <div className="manager-header">
-          <button className="btn btn-back" onClick={() => setView('select')}>← Change Method</button>
-          <span className="current-method">Pirateship</span>
+        <div className="manager-header" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <button className="btn btn-back" onClick={() => setView('select')} style={{ padding: '6px 12px' }}>← Change Method</button>
+          <span style={{ fontWeight: '600' }}>Pirateship</span>
         </div>
         
         <div className="pirateship-helper">
-          <h3>Pirateship - Copy Address</h3>
+          <h3 style={{ marginBottom: '12px' }}>Pirateship - Copy Address</h3>
 
           <CustomerAddress
             destination={customerInfo}
             title="Ship To"
           />
 
-          <div className="pirateship-actions">
+          <div style={{ marginTop: '16px', marginBottom: '16px' }}>
             <button
-              className="btn btn-primary"
-              onClick={() => openExternalSite('https://ship.pirateship.com/ship/single')}
+              onClick={() => openNewWindow('https://ship.pirateship.com/ship/single')}
+              style={{ 
+                backgroundColor: '#2196f3', 
+                color: 'white', 
+                border: 'none', 
+                padding: '10px 20px', 
+                borderRadius: '6px', 
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '14px'
+              }}
             >
               Open Pirateship →
             </button>
           </div>
 
-          <div className="input-group">
-            <label>Shipping Cost ($):</label>
+          <div style={inputGroupStyle}>
+            <label style={labelStyle}>Shipping Cost ($):</label>
             <input 
               type="number"
               step="0.01"
@@ -302,39 +341,41 @@ const ShippingManager = ({
               onChange={(e) => setPsQuotePrice(e.target.value)}
               placeholder="0.00"
               disabled={psSaved}
+              style={inputStyle}
             />
           </div>
 
-          <div className="input-group full-width">
-            <label>Quote URL (from Pirateship):</label>
+          <div style={inputGroupStyle}>
+            <label style={labelStyle}>Quote URL (from Pirateship):</label>
             <input 
               type="text"
               value={psQuoteUrl}
               onChange={(e) => setPsQuoteUrl(e.target.value)}
               placeholder="https://ship.pirateship.com/..."
               disabled={psSaved}
+              style={inputStyle}
             />
           </div>
 
-          <div className="button-row">
+          <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
             {psSaved ? (
               <>
-                <button className="btn btn-success" onClick={openPirateshipQuote}>
+                <button onClick={openPirateshipQuote} style={{ backgroundColor: '#4caf50', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
                   Open Quote
                 </button>
-                <button className="btn btn-secondary" onClick={handleChangePsUrl}>
+                <button onClick={handleChangePsUrl} style={{ backgroundColor: '#9e9e9e', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
                   Change URL
                 </button>
-                <button className="btn btn-secondary" onClick={handleSave}>
+                <button onClick={handleSave} style={{ backgroundColor: '#9e9e9e', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
                   Done
                 </button>
               </>
             ) : (
               <>
-                <button className="btn btn-success" onClick={savePirateshipQuote}>
+                <button onClick={savePirateshipQuote} style={{ backgroundColor: '#4caf50', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
                   Save Quote
                 </button>
-                <button className="btn btn-secondary" onClick={handleSave}>
+                <button onClick={handleSave} style={{ backgroundColor: '#9e9e9e', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
                   Done
                 </button>
               </>
@@ -349,46 +390,48 @@ const ShippingManager = ({
   if (view === 'lidelivery') {
     return (
       <div className="shipping-manager">
-        <div className="manager-header">
-          <button className="btn btn-back" onClick={() => setView('select')}>← Change Method</button>
-          <span className="current-method">Li Delivery</span>
+        <div className="manager-header" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <button className="btn btn-back" onClick={() => setView('select')} style={{ padding: '6px 12px' }}>← Change Method</button>
+          <span style={{ fontWeight: '600' }}>Li Delivery</span>
         </div>
         
-        <div className="li-delivery-helper">
-          <h3>Li Delivery Pricing</h3>
-          <p className="method-info">Li handles delivery. Enter cost and customer charge for tracking.</p>
+        <div className="li-delivery-helper" style={{ width: '100%' }}>
+          <h3 style={{ marginBottom: '8px' }}>Li Delivery Pricing</h3>
+          <p style={{ color: '#666', fontSize: '13px', marginBottom: '16px' }}>Li handles delivery. Enter cost and customer charge for tracking.</p>
           
-          <div className="input-grid">
-            <div className="input-group">
-              <label>Our Cost ($):</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div style={inputGroupStyle}>
+              <label style={labelStyle}>Our Cost ($):</label>
               <input 
                 type="number"
                 step="0.01"
                 value={liCost}
                 onChange={(e) => setLiCost(e.target.value)}
                 placeholder="200.00"
+                style={inputStyle}
               />
             </div>
             
-            <div className="input-group">
-              <label>Customer Charge ($):</label>
+            <div style={inputGroupStyle}>
+              <label style={labelStyle}>Customer Charge ($):</label>
               <input 
                 type="number"
                 step="0.01"
                 value={liCharge}
                 onChange={(e) => setLiCharge(e.target.value)}
                 placeholder="250.00"
+                style={inputStyle}
               />
             </div>
           </div>
           
           {liCost && liCharge && (
-            <p className="profit-note">
+            <p style={{ color: '#2e7d32', fontWeight: '600', marginTop: '8px' }}>
               Profit: ${(parseFloat(liCharge || 0) - parseFloat(liCost || 0)).toFixed(2)}
             </p>
           )}
           
-          <button className="btn btn-success" onClick={saveLiPricing}>
+          <button onClick={saveLiPricing} style={{ backgroundColor: '#4caf50', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', marginTop: '16px', fontWeight: '600' }}>
             Save Pricing
           </button>
         </div>
@@ -400,46 +443,48 @@ const ShippingManager = ({
   if (view === 'boxtruck') {
     return (
       <div className="shipping-manager">
-        <div className="manager-header">
-          <button className="btn btn-back" onClick={() => setView('select')}>← Change Method</button>
-          <span className="current-method">Box Truck</span>
+        <div className="manager-header" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <button className="btn btn-back" onClick={() => setView('select')} style={{ padding: '6px 12px' }}>← Change Method</button>
+          <span style={{ fontWeight: '600' }}>Box Truck</span>
         </div>
         
-        <div className="boxtruck-helper">
-          <h3>Box Truck Pricing</h3>
-          <p className="method-info">Local delivery via box truck.</p>
+        <div className="boxtruck-helper" style={{ width: '100%' }}>
+          <h3 style={{ marginBottom: '8px' }}>Box Truck Pricing</h3>
+          <p style={{ color: '#666', fontSize: '13px', marginBottom: '16px' }}>Local delivery via box truck.</p>
           
-          <div className="input-grid">
-            <div className="input-group">
-              <label>Our Cost ($):</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div style={inputGroupStyle}>
+              <label style={labelStyle}>Our Cost ($):</label>
               <input 
                 type="number"
                 step="0.01"
                 value={btCost}
                 onChange={(e) => setBtCost(e.target.value)}
                 placeholder="0.00"
+                style={inputStyle}
               />
             </div>
             
-            <div className="input-group">
-              <label>Customer Charge ($):</label>
+            <div style={inputGroupStyle}>
+              <label style={labelStyle}>Customer Charge ($):</label>
               <input 
                 type="number"
                 step="0.01"
                 value={btCharge}
                 onChange={(e) => setBtCharge(e.target.value)}
                 placeholder="0.00"
+                style={inputStyle}
               />
             </div>
           </div>
           
           {btCost && btCharge && (
-            <p className="profit-note">
+            <p style={{ color: '#2e7d32', fontWeight: '600', marginTop: '8px' }}>
               Profit: ${(parseFloat(btCharge || 0) - parseFloat(btCost || 0)).toFixed(2)}
             </p>
           )}
           
-          <button className="btn btn-success" onClick={saveBoxTruckPricing}>
+          <button onClick={saveBoxTruckPricing} style={{ backgroundColor: '#4caf50', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', marginTop: '16px', fontWeight: '600' }}>
             Save Pricing
           </button>
         </div>
@@ -451,17 +496,17 @@ const ShippingManager = ({
   if (view === 'tracking') {
     return (
       <div className="shipping-manager">
-        <div className="manager-header">
-          <button className="btn btn-back" onClick={() => setView('select')}>← Change Method</button>
-          <span className="current-method">{method}</span>
+        <div className="manager-header" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <button className="btn btn-back" onClick={() => setView('select')} style={{ padding: '6px 12px' }}>← Change Method</button>
+          <span style={{ fontWeight: '600' }}>{method}</span>
         </div>
         
         <div className="tracking-simple">
           {method === 'Pickup' && (
-            <p className="method-info">Customer will pick up from warehouse. Mark as complete when picked up.</p>
+            <p style={{ color: '#666', marginBottom: '16px' }}>Customer will pick up from warehouse. Mark as complete when picked up.</p>
           )}
           
-          <button className="btn btn-success" onClick={handleSave}>
+          <button onClick={handleSave} style={{ backgroundColor: '#4caf50', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>
             Done
           </button>
         </div>

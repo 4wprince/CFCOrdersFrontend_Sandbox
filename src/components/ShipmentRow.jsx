@@ -1,10 +1,11 @@
 /**
  * ShipmentRow.jsx
  * Display a single warehouse shipment with status, method, and actions
- * v5.8.4 - Shipping button for all methods, mailto from CFC email
+ * v5.9.1 - Show shipping cost next to warehouse name
  */
 
 import { useState } from 'react'
+import { API_URL } from '../config'
 
 const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
@@ -23,7 +24,16 @@ const METHOD_OPTIONS = [
   { value: 'LiDelivery', label: 'LiDelivery' }
 ]
 
-import { API_URL } from '../config'
+// Get shipping cost for this shipment
+const getShippingCost = (shipment) => {
+  const cost = 
+    Number(shipment.rl_customer_price) || 
+    Number(shipment.li_customer_price) || 
+    Number(shipment.customer_price) ||
+    Number(shipment.ps_quote_price) ||
+    0
+  return cost
+}
 
 const ShipmentRow = ({ 
   shipment, 
@@ -98,7 +108,6 @@ const ShipmentRow = ({
     const orderId = order?.order_id || shipment.order_id
     const firstName = customerName.split(' ')[0]
     
-    // Determine carrier and tracking URL
     let carrier = 'Freight'
     let trackingUrl = ''
     
@@ -127,20 +136,33 @@ ${trackingUrl ? `Track your shipment: ${trackingUrl}` : ''}
 Thank you for your business,
 The Cabinets For Contractors Team`
     
-    // Open mailto - will open in default email client
-   const mailtoUrl = `mailto:${customerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-window.open(mailtoUrl, '_blank')
+    const mailtoUrl = `mailto:${customerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    window.open(mailtoUrl, '_blank')
   }
   
   // Check if shipment has any quote/price info
   const hasQuoteInfo = shipment.rl_quote_number || shipment.rl_quote_price || 
-                       shipment.li_quote_price || shipment.quote_price
+                       shipment.li_quote_price || shipment.quote_price || shipment.ps_quote_price
+  
+  // Get shipping cost to display
+  const shippingCost = getShippingCost(shipment)
   
   return (
     <div className={`shipment-row ${updating ? 'updating' : ''}`}>
       <div className="shipment-warehouse">
         <strong>{shipment.warehouse}</strong>
-        {shipment.weight && <span className="weight">{shipment.weight} lbs</span>}
+        {/* Show shipping cost next to warehouse name */}
+        {shippingCost > 0 && (
+          <span style={{ 
+            marginLeft: '8px', 
+            color: '#2e7d32', 
+            fontWeight: '600',
+            fontSize: '13px'
+          }}>
+            — ${shippingCost.toFixed(2)}
+          </span>
+        )}
+        {shipment.weight && <span className="weight" style={{ marginLeft: '8px', color: '#666', fontSize: '12px' }}>{shipment.weight} lbs</span>}
       </div>
       
       <div className="shipment-controls">
@@ -164,8 +186,7 @@ window.open(mailtoUrl, '_blank')
           ))}
         </select>
         
-        {/* Shipping button - show for all methods except Pickup */}
-        {/* Shipping button - show for all shipments */}
+        {/* Shipping button */}
         <button 
           className={`btn btn-sm ${hasQuoteInfo ? 'btn-quoted' : 'btn-quote'}`}
           onClick={() => onOpenShippingManager(shipment)}

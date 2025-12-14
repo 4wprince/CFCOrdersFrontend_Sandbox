@@ -1,7 +1,7 @@
 /**
  * OrderCard.jsx
  * Display a single order with status, customer info, shipments, notes, and AI summary
- * v5.9.0 - Notes/AI Summary inline, fixed status updates
+ * v5.9.1 - Styled containers, fixed status updates with boolean fields, blue Add Note button
  */
 
 import { useState } from 'react'
@@ -28,6 +28,17 @@ const STATUS_OPTIONS = [
   { value: 'complete', label: 'Complete' }
 ]
 
+// Maps status value to the boolean fields that backend expects
+const STATUS_FIELD_MAP = {
+  'needs_payment_link': { payment_link_sent: false, payment_received: false, sent_to_warehouse: false, warehouse_confirmed: false, bol_sent: false, is_complete: false },
+  'awaiting_payment': { payment_link_sent: true, payment_received: false, sent_to_warehouse: false, warehouse_confirmed: false, bol_sent: false, is_complete: false },
+  'needs_warehouse_order': { payment_link_sent: true, payment_received: true, sent_to_warehouse: false, warehouse_confirmed: false, bol_sent: false, is_complete: false },
+  'awaiting_warehouse': { payment_link_sent: true, payment_received: true, sent_to_warehouse: true, warehouse_confirmed: false, bol_sent: false, is_complete: false },
+  'needs_bol': { payment_link_sent: true, payment_received: true, sent_to_warehouse: true, warehouse_confirmed: true, bol_sent: false, is_complete: false },
+  'awaiting_shipment': { payment_link_sent: true, payment_received: true, sent_to_warehouse: true, warehouse_confirmed: true, bol_sent: true, is_complete: false },
+  'complete': { payment_link_sent: true, payment_received: true, sent_to_warehouse: true, warehouse_confirmed: true, bol_sent: true, is_complete: true }
+}
+
 const getAgeLabel = (orderDate) => {
   if (!orderDate) return ''
   const created = new Date(orderDate)
@@ -40,7 +51,7 @@ const getAgeLabel = (orderDate) => {
   return `${diffDays} Days`
 }
 
-// Calculate shipping totals - includes all pricing fields
+// Calculate shipping totals
 const calculateShippingTotals = (shipments) => {
   if (!shipments || shipments.length === 0) return { customerCharge: 0, cost: 0, profit: 0 }
   
@@ -48,31 +59,25 @@ const calculateShippingTotals = (shipments) => {
   let cost = 0
   
   shipments.forEach(s => {
-    // Customer charge (what we charge them)
     const custPrice = 
       Number(s.rl_customer_price) || 
       Number(s.li_customer_price) || 
       Number(s.customer_price) ||
-      Number(s.ps_quote_price) ||  // Pirateship - use quote as customer price if no markup
+      Number(s.ps_quote_price) ||
       0
     
-    // Our cost (what we pay)
     const ourCost = 
       Number(s.rl_quote_price) || 
       Number(s.li_quote_price) || 
       Number(s.quote_price) ||
-      Number(s.ps_quote_price) ||  // Pirateship cost
+      Number(s.ps_quote_price) ||
       0
     
     customerCharge += custPrice
     cost += ourCost
   })
   
-  return {
-    customerCharge,
-    cost,
-    profit: customerCharge - cost
-  }
+  return { customerCharge, cost, profit: customerCharge - cost }
 }
 
 const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => {
@@ -104,7 +109,7 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
 
   const shippingTotals = calculateShippingTotals(order.shipments)
 
-  // Handle status change - sends current_status directly
+  // Handle status change - sends boolean fields that backend expects
   const handleStatusChange = async (e) => {
     e.stopPropagation()
     const newStatus = e.target.value
@@ -112,16 +117,21 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
 
     setIsUpdating(true)
     try {
+      const updates = STATUS_FIELD_MAP[newStatus]
+      if (!updates) {
+        throw new Error('Unknown status')
+      }
+
       const res = await fetch(`${API_URL}/orders/${order.order_id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ current_status: newStatus })
+        body: JSON.stringify(updates)
       })
 
       if (!res.ok) {
         const errorText = await res.text()
         console.error('Status update failed:', res.status, errorText)
-        throw new Error(`Status update failed: ${errorText}`)
+        throw new Error(errorText)
       }
 
       if (onUpdate) onUpdate()
@@ -158,6 +168,15 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
     } finally {
       setIsSavingNotes(false)
     }
+  }
+
+  // Container styles
+  const containerBase = {
+    borderRadius: '8px',
+    padding: '8px 10px',
+    margin: '6px 8px',
+    fontSize: '13px',
+    lineHeight: '1.4'
   }
 
   return (
@@ -245,59 +264,111 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
         </div>
       )}
 
-      {/* Notes & AI Summary Section (replaces Details button) */}
+      {/* Notes & AI Summary Section */}
       <div className="order-notes-section">
-        {/* Customer Comments */}
+        
+        {/* Customer Comments - Yellow container */}
         {order.comments && (
-          <div className="customer-comments">
+          <div style={{
+            ...containerBase,
+            backgroundColor: '#fffde7',
+            border: '1px solid #f9a825'
+          }}>
             <strong>Customer:</strong> {order.comments}
           </div>
         )}
 
-        {/* Internal Notes */}
-        <div className="internal-notes">
+        {/* Internal Notes - Purple container */}
+        <div style={{
+          ...containerBase,
+          backgroundColor: '#f3e5f5',
+          border: '1px solid #9c27b0'
+        }}>
           {isEditingNotes ? (
-            <div className="notes-editor">
+            <div>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Add internal notes..."
                 rows={3}
                 onClick={(e) => e.stopPropagation()}
+                style={{ 
+                  width: '100%', 
+                  marginBottom: '8px', 
+                  padding: '6px', 
+                  borderRadius: '4px', 
+                  border: '1px solid #9c27b0',
+                  fontSize: '13px',
+                  fontFamily: 'inherit',
+                  resize: 'vertical'
+                }}
               />
-              <div className="notes-actions">
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <button 
-                  className="btn btn-sm btn-success" 
                   onClick={(e) => { e.stopPropagation(); handleSaveNotes(); }}
                   disabled={isSavingNotes}
+                  style={{ 
+                    backgroundColor: '#4caf50', 
+                    color: 'white', 
+                    border: 'none', 
+                    padding: '4px 12px', 
+                    borderRadius: '4px', 
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
                 >
                   {isSavingNotes ? 'Saving...' : 'Save'}
                 </button>
                 <button 
-                  className="btn btn-sm" 
                   onClick={(e) => { e.stopPropagation(); setIsEditingNotes(false); setNotes(order.notes || ''); }}
                   disabled={isSavingNotes}
+                  style={{ 
+                    backgroundColor: '#9e9e9e', 
+                    color: 'white', 
+                    border: 'none', 
+                    padding: '4px 12px', 
+                    borderRadius: '4px', 
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
                 >
                   Cancel
                 </button>
               </div>
             </div>
           ) : (
-            <div className="notes-display" onClick={(e) => e.stopPropagation()}>
+            <div onClick={(e) => e.stopPropagation()}>
               {order.notes ? (
-                <div className="notes-text">
-                  <strong>Notes:</strong> {order.notes}
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                  <div><strong>Notes:</strong> {order.notes}</div>
                   <button 
-                    className="btn btn-xs" 
                     onClick={() => setIsEditingNotes(true)}
+                    style={{ 
+                      backgroundColor: '#2196f3', 
+                      color: 'white', 
+                      border: 'none', 
+                      padding: '2px 8px', 
+                      borderRadius: '4px', 
+                      cursor: 'pointer',
+                      fontSize: '11px',
+                      flexShrink: 0
+                    }}
                   >
                     Edit
                   </button>
                 </div>
               ) : (
                 <button 
-                  className="btn btn-sm btn-secondary" 
                   onClick={() => setIsEditingNotes(true)}
+                  style={{ 
+                    backgroundColor: '#2196f3', 
+                    color: 'white', 
+                    border: 'none', 
+                    padding: '4px 12px', 
+                    borderRadius: '4px', 
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
                 >
                   + Add Note
                 </button>
@@ -306,11 +377,23 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
           )}
         </div>
 
-        {/* AI Summary */}
+        {/* AI Summary - Green container */}
         {order.ai_summary && (
-          <div className="ai-summary">
+          <div style={{
+            ...containerBase,
+            backgroundColor: '#e8f5e9',
+            border: '1px solid #4caf50'
+          }}>
             <strong>AI Summary:</strong>
-            <pre>{order.ai_summary}</pre>
+            <div style={{ 
+              marginTop: '4px',
+              whiteSpace: 'pre-wrap',
+              wordWrap: 'break-word',
+              overflowWrap: 'break-word',
+              lineHeight: '1.4'
+            }}>
+              {order.ai_summary}
+            </div>
           </div>
         )}
       </div>
