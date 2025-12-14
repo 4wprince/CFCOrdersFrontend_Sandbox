@@ -14,6 +14,8 @@ const STATUS_MAP = {
 }
 
 const StatusBar = ({ orders, activeFilter, onFilterChange, showArchived, onToggleArchived }) => {
+  if (!Array.isArray(orders)) return null
+
   // Count orders by status
   const counts = {}
   Object.keys(STATUS_MAP).forEach(key => {
