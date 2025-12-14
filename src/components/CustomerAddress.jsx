@@ -1,12 +1,10 @@
 /**
- * CustomerAddress.jsx
- * Shared component for copying customer address fields
- * v5.9.2 - Click checkbox to copy, shows checkmark when copied
+ * CustomerAddress.jsx v5.9.2 - With checkboxes for copying
  */
 
 import { useState } from 'react'
 
-const CopyField = ({ text, label }) => {
+const CopyButton = ({ text, label }) => {
   const [copied, setCopied] = useState(false)
   
   if (!text) return null
@@ -14,111 +12,89 @@ const CopyField = ({ text, label }) => {
   const handleCopy = () => {
     navigator.clipboard.writeText(text)
     setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    setTimeout(() => setCopied(false), 1500)
   }
   
   return (
-    <div 
-      onClick={handleCopy}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        padding: '4px 0',
-        cursor: 'pointer',
-        borderRadius: '4px'
-      }}
-      title={`Click to copy ${label}`}
-    >
-      <span style={{
-        width: '18px',
-        height: '18px',
-        border: copied ? '2px solid #4caf50' : '2px solid #ccc',
-        borderRadius: '3px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: copied ? '#e8f5e9' : 'white',
-        fontSize: '12px',
-        flexShrink: 0
-      }}>
-        {copied ? '✓' : ''}
-      </span>
-      <span style={{ fontWeight: '600', minWidth: '80px', color: '#666', fontSize: '12px' }}>{label}:</span>
-      <span style={{ color: '#333', fontSize: '13px' }}>{text}</span>
+    <div className="copy-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+      <span className="copy-label" style={{ minWidth: '100px', color: '#666', fontSize: '12px' }}>{label}:</span>
+      <span className="copy-value" style={{ flex: 1, fontSize: '13px' }}>{text}</span>
+      <button 
+        className="copy-btn" 
+        onClick={handleCopy} 
+        title="Copy"
+        style={{ 
+          backgroundColor: copied ? '#4caf50' : '#e0e0e0', 
+          color: copied ? 'white' : '#333',
+          border: 'none', 
+          padding: '2px 8px', 
+          borderRadius: '4px', 
+          cursor: 'pointer',
+          fontSize: '11px'
+        }}
+      >
+        {copied ? '✓' : '📋'}
+      </button>
     </div>
   )
 }
 
 const CustomerAddress = ({ destination, title = "Ship To (Customer)" }) => {
-  const [allCopied, setAllCopied] = useState(false)
+  const [selectedFields, setSelectedFields] = useState({
+    name: true, street: true, city: true, state: true, zip: true, phone: false, email: false
+  })
+  const [copied, setCopied] = useState(false)
   
   if (!destination) return null
   
-  // Build full address for copy all
-  const buildFullAddress = () => {
-    const parts = [
-      destination.name,
-      destination.street,
-      destination.street2,
-      `${destination.city || ''}, ${destination.state || ''} ${destination.zip || ''}`.trim(),
-      destination.phone,
-      destination.email
-    ].filter(Boolean)
-    return parts.join('\n')
+  const fields = [
+    { key: 'name', label: 'Name', value: destination.name || destination.company_name || destination.customer_name || '' },
+    { key: 'street', label: 'Street', value: destination.street || destination.address || '' },
+    { key: 'city', label: 'City', value: destination.city || '' },
+    { key: 'state', label: 'State', value: destination.state || '' },
+    { key: 'zip', label: 'ZIP', value: destination.zip || destination.postal_code || '' },
+    { key: 'phone', label: 'Phone', value: destination.phone || '' },
+    { key: 'email', label: 'Email', value: destination.email || '' }
+  ]
+  
+  const copySelected = async () => {
+    const selectedValues = fields.filter(f => selectedFields[f.key] && f.value).map(f => f.value).join('\n')
+    try {
+      await navigator.clipboard.writeText(selectedValues)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch (err) { console.error('Failed to copy:', err) }
   }
   
-  const handleCopyAll = () => {
-    navigator.clipboard.writeText(buildFullAddress())
-    setAllCopied(true)
-    setTimeout(() => setAllCopied(false), 2000)
-  }
+  const toggleField = (key) => setSelectedFields({ ...selectedFields, [key]: !selectedFields[key] })
   
   return (
-    <div style={{
-      backgroundColor: '#f5f5f5',
-      borderRadius: '8px',
-      padding: '12px',
-      marginBottom: '12px'
-    }}>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '8px'
-      }}>
-        <h4 style={{ margin: 0, fontSize: '14px' }}>{title}</h4>
-        <button
-          onClick={handleCopyAll}
-          style={{
-            backgroundColor: allCopied ? '#4caf50' : '#2196f3',
-            color: 'white',
-            border: 'none',
-            padding: '4px 10px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '11px'
-          }}
-        >
-          {allCopied ? '✓ Copied All' : 'Copy All'}
+    <div className="address-section" style={{ backgroundColor: '#f5f5f5', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <h4 style={{ margin: 0 }}>{title}</h4>
+        <button onClick={copySelected}
+          style={{ backgroundColor: copied ? '#4caf50' : '#2196f3', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>
+          {copied ? '✓ Copied!' : 'Copy Selected'}
         </button>
       </div>
-      <CopyField label="Company/Name" text={destination.name} />
-      <CopyField label="Street" text={destination.street} />
-      {destination.street2 && <CopyField label="Street 2" text={destination.street2} />}
-      <CopyField label="City" text={destination.city} />
-      <CopyField label="State" text={destination.state} />
-      <CopyField label="ZIP" text={destination.zip} />
-      <CopyField label="Phone" text={destination.phone} />
-      <CopyField label="Email" text={destination.email} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        {fields.map(field => field.value && (
+          <div key={field.key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <input type="checkbox" checked={selectedFields[field.key]} onChange={() => toggleField(field.key)} style={{ cursor: 'pointer' }} />
+            <span style={{ minWidth: '50px', color: '#666', fontSize: '12px' }}>{field.label}:</span>
+            <span style={{ flex: 1, fontSize: '13px' }}>{field.value}</span>
+            <button onClick={() => { navigator.clipboard.writeText(field.value) }}
+              style={{ backgroundColor: '#e0e0e0', color: '#333', border: 'none', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>
+              Copy
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
 
-// Static billing address for CFC
 const BillToAddress = () => {
-  const [allCopied, setAllCopied] = useState(false)
-  
   const billTo = {
     company: 'Cabinets For Contactors-Cust Number C00VP1',
     street: '185 Stevenson Point',
@@ -129,52 +105,19 @@ const BillToAddress = () => {
     phone: '(770) 990-4885'
   }
   
-  const handleCopyAll = () => {
-    const fullAddress = `${billTo.company}\n${billTo.street}\n${billTo.city}, ${billTo.state} ${billTo.zip}\n${billTo.phone}\n${billTo.email}`
-    navigator.clipboard.writeText(fullAddress)
-    setAllCopied(true)
-    setTimeout(() => setAllCopied(false), 2000)
-  }
-  
   return (
-    <div style={{
-      backgroundColor: '#fff3e0',
-      borderRadius: '8px',
-      padding: '12px',
-      marginBottom: '12px'
-    }}>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '8px'
-      }}>
-        <h4 style={{ margin: 0, fontSize: '14px' }}>Bill To (Section 3 - Always Same)</h4>
-        <button
-          onClick={handleCopyAll}
-          style={{
-            backgroundColor: allCopied ? '#4caf50' : '#2196f3',
-            color: 'white',
-            border: 'none',
-            padding: '4px 10px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '11px'
-          }}
-        >
-          {allCopied ? '✓ Copied All' : 'Copy All'}
-        </button>
-      </div>
-      <CopyField label="Company" text={billTo.company} />
-      <CopyField label="Street" text={billTo.street} />
-      <CopyField label="City" text={billTo.city} />
-      <CopyField label="State" text={billTo.state} />
-      <CopyField label="ZIP" text={billTo.zip} />
-      <CopyField label="Email" text={billTo.email} />
-      <CopyField label="Phone" text={billTo.phone} />
+    <div className="address-section bill-to" style={{ backgroundColor: '#e3f2fd', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>
+      <h4 style={{ margin: '0 0 12px 0' }}>Bill To (Section 3 - Always Same)</h4>
+      <CopyButton label="Company" text={billTo.company} />
+      <CopyButton label="Street" text={billTo.street} />
+      <CopyButton label="City" text={billTo.city} />
+      <CopyButton label="State" text={billTo.state} />
+      <CopyButton label="ZIP" text={billTo.zip} />
+      <CopyButton label="Email" text={billTo.email} />
+      <CopyButton label="Phone" text={billTo.phone} />
     </div>
   )
 }
 
-export { CustomerAddress, BillToAddress, CopyField }
+export { CustomerAddress, BillToAddress, CopyButton }
 export default CustomerAddress
