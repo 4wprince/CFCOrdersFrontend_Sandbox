@@ -1,16 +1,12 @@
 /**
  * App.jsx - Main Application
- * v5.8.3 - Fixed: removed broken checkbox status controls
- * 
- * Note: Status changes are handled by the dropdown in OrderCard.jsx
- * The old checkbox approach sent boolean fields the backend doesn't accept
+ * v5.9.0 - Fixed status updates, removed broken modal checkboxes
  */
 
 import { useState, useEffect } from 'react'
 import StatusBar from './components/StatusBar'
 import OrderCard from './components/OrderCard'
 import ShippingManager from './components/ShippingManager'
-import OrderComments from './components/OrderComments'
 
 import { API_URL, APP_PASSWORD } from './config'
 
@@ -84,9 +80,8 @@ function App() {
   // === FILTERING ===
 
   const getFilteredOrders = () => {
-    let filtered = orders
+    let filtered = orders || []
 
-    // Guard against null/undefined items
     if (statusFilter) {
       filtered = filtered.filter(o => o && o.current_status === statusFilter)
     } else if (showArchived) {
@@ -162,7 +157,8 @@ function App() {
 
   // === RENDER: MAIN APP ===
 
-  const filteredOrders = getFilteredOrders()
+  const result = getFilteredOrders()
+  const filteredOrders = Array.isArray(result) ? result : []
 
   return (
     <div className="app">
@@ -203,7 +199,7 @@ function App() {
         )}
       </main>
 
-      {/* Order Detail Modal */}
+      {/* Order Detail Modal - Customer info and address copy */}
       {selectedOrder && (
         <div className="modal-overlay" onClick={closeOrderDetail}>
           <div className="modal order-detail-modal" onClick={(e) => e.stopPropagation()}>
@@ -212,14 +208,44 @@ function App() {
               <button className="modal-close" onClick={closeOrderDetail}>×</button>
             </div>
             <div className="modal-body">
-              {/* Customer Info */}
+              {/* Customer Info with Copy buttons */}
               <div className="detail-section">
-                <h3>Customer</h3>
-                <p><strong>{selectedOrder.company_name || selectedOrder.customer_name}</strong></p>
-                <p>{selectedOrder.street}</p>
-                <p>{selectedOrder.city}, {selectedOrder.state} {selectedOrder.zip_code}</p>
-                <p>{selectedOrder.phone}</p>
-                <p>{selectedOrder.email}</p>
+                <h3>Customer - Click to Copy</h3>
+                <div className="copy-field" onClick={() => navigator.clipboard.writeText(selectedOrder.company_name || selectedOrder.customer_name || '')}>
+                  <span className="label">Name:</span>
+                  <span className="value">{selectedOrder.company_name || selectedOrder.customer_name}</span>
+                  <span className="copy-icon">📋</span>
+                </div>
+                <div className="copy-field" onClick={() => navigator.clipboard.writeText(selectedOrder.street || '')}>
+                  <span className="label">Street:</span>
+                  <span className="value">{selectedOrder.street}</span>
+                  <span className="copy-icon">📋</span>
+                </div>
+                <div className="copy-field" onClick={() => navigator.clipboard.writeText(selectedOrder.city || '')}>
+                  <span className="label">City:</span>
+                  <span className="value">{selectedOrder.city}</span>
+                  <span className="copy-icon">📋</span>
+                </div>
+                <div className="copy-field" onClick={() => navigator.clipboard.writeText(selectedOrder.state || '')}>
+                  <span className="label">State:</span>
+                  <span className="value">{selectedOrder.state}</span>
+                  <span className="copy-icon">📋</span>
+                </div>
+                <div className="copy-field" onClick={() => navigator.clipboard.writeText(selectedOrder.zip_code || '')}>
+                  <span className="label">ZIP:</span>
+                  <span className="value">{selectedOrder.zip_code}</span>
+                  <span className="copy-icon">📋</span>
+                </div>
+                <div className="copy-field" onClick={() => navigator.clipboard.writeText(selectedOrder.phone || '')}>
+                  <span className="label">Phone:</span>
+                  <span className="value">{selectedOrder.phone}</span>
+                  <span className="copy-icon">📋</span>
+                </div>
+                <div className="copy-field" onClick={() => navigator.clipboard.writeText(selectedOrder.email || '')}>
+                  <span className="label">Email:</span>
+                  <span className="value">{selectedOrder.email}</span>
+                  <span className="copy-icon">📋</span>
+                </div>
               </div>
 
               {/* Order Info */}
@@ -250,9 +276,6 @@ function App() {
                   ))}
                 </div>
               )}
-
-              {/* Comments & AI Summary */}
-              <OrderComments order={selectedOrder} onUpdate={loadOrders} />
             </div>
           </div>
         </div>

@@ -5,7 +5,6 @@
  */
 
 import { useState } from 'react'
-import { API_URL } from '../config'
 
 const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
@@ -23,6 +22,8 @@ const METHOD_OPTIONS = [
   { value: 'BoxTruck', label: 'BoxTruck' },
   { value: 'LiDelivery', label: 'LiDelivery' }
 ]
+
+import { API_URL } from '../config'
 
 const ShipmentRow = ({ 
   shipment, 
@@ -50,7 +51,6 @@ const ShipmentRow = ({
   const handleMethodChange = async (newMethod) => {
     setUpdating(true)
     try {
-
       await fetch(`${API_URL}/shipments/${shipment.shipment_id}?ship_method=${newMethod}`, {
         method: 'PATCH'
       })

@@ -1,44 +1,13 @@
 /**
  * ShippingManager.jsx
  * Central hub for shipping method selection and routing
- * v5.8.4 - New tab instead of popup, snap tip, BoxTruck quote
+ * v5.9.0 - Fixed routing for all methods
  */
 
 import { useState, useEffect } from 'react'
 import RLQuoteHelper from './RLQuoteHelper'
 import { CustomerAddress } from './CustomerAddress'
-
 import { API_URL } from '../config'
-
-// Check if we should show the snap tip
-const shouldShowSnapTip = () => {
-  const tipData = localStorage.getItem('cfc_snap_tip')
-  if (!tipData) return true
-  
-  const { dismissed, firstShown } = JSON.parse(tipData)
-  if (dismissed) return false
-  
-  // Auto-hide after 14 days
-  const daysSinceFirst = (Date.now() - firstShown) / (1000 * 60 * 60 * 24)
-  return daysSinceFirst < 14
-}
-
-const markTipShown = () => {
-  const existing = localStorage.getItem('cfc_snap_tip')
-  if (!existing) {
-    localStorage.setItem('cfc_snap_tip', JSON.stringify({
-      dismissed: false,
-      firstShown: Date.now()
-    }))
-  }
-}
-
-const dismissTip = () => {
-  localStorage.setItem('cfc_snap_tip', JSON.stringify({
-    dismissed: true,
-    firstShown: Date.now()
-  }))
-}
 
 const ShippingManager = ({ 
   shipment, 
@@ -50,37 +19,33 @@ const ShippingManager = ({
   const [method, setMethod] = useState(shipment?.ship_method || '')
   const [rlData, setRlData] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [showTip, setShowTip] = useState(shouldShowSnapTip())
   
   // Determine initial view based on existing method
   const getInitialView = () => {
-    if (!shipment?.ship_method) return 'select'
-    if (shipment.ship_method === 'LTL') return 'rl'
-    if (shipment.ship_method === 'Pirateship') return 'pirateship'
-    if (shipment.ship_method === 'LiDelivery') return 'lidelivery'
-    if (shipment.ship_method === 'BoxTruck') return 'boxtruck'
-    return 'tracking'
+    const m = shipment?.ship_method
+    if (!m) return 'select'
+    if (m === 'LTL') return 'rl'
+    if (m === 'Pirateship') return 'pirateship'
+    if (m === 'LiDelivery') return 'lidelivery'
+    if (m === 'BoxTruck') return 'boxtruck'
+    if (m === 'Pickup') return 'tracking'
+    return 'select'
   }
   
   const [view, setView] = useState(getInitialView())
   
   // Li Delivery pricing
-  const [liCost, setLiCost] = useState(shipment?.li_quote_price || '200')
-  const [liCharge, setLiCharge] = useState(shipment?.li_customer_price || '250')
+  const [liCost, setLiCost] = useState(shipment?.li_quote_price || '')
+  const [liCharge, setLiCharge] = useState(shipment?.li_customer_price || '')
   
   // Box Truck pricing
   const [btCost, setBtCost] = useState(shipment?.quote_price || '')
   const [btCharge, setBtCharge] = useState(shipment?.customer_price || '')
 
-// Pirateship quote
+  // Pirateship quote
   const [psQuoteUrl, setPsQuoteUrl] = useState(shipment?.ps_quote_url || '')
   const [psQuotePrice, setPsQuotePrice] = useState(shipment?.ps_quote_price || '')
   const [psSaved, setPsSaved] = useState(!!shipment?.ps_quote_url || !!shipment?.ps_quote_price)
-  
-  // Mark tip as shown on mount
-  useEffect(() => {
-    markTipShown()
-  }, [])
   
   // Load RL data when LTL is selected
   useEffect(() => {
@@ -89,7 +54,7 @@ const ShippingManager = ({
     }
   }, [method, view])
   
-  // Auto-load if method already set
+  // Auto-load RL data if method is already LTL
   useEffect(() => {
     if (shipment?.ship_method === 'LTL') {
       setMethod('LTL')
@@ -135,8 +100,10 @@ const ShippingManager = ({
       setView('lidelivery')
     } else if (newMethod === 'BoxTruck') {
       setView('boxtruck')
-    } else {
+    } else if (newMethod === 'Pickup') {
       setView('tracking')
+    } else {
+      setView('select')
     }
   }
   
@@ -148,8 +115,8 @@ const ShippingManager = ({
   const saveLiPricing = async () => {
     try {
       const params = new URLSearchParams()
-      params.append('li_quote_price', liCost)
-      params.append('li_customer_price', liCharge)
+      if (liCost) params.append('li_quote_price', liCost)
+      if (liCharge) params.append('li_customer_price', liCharge)
       
       await fetch(`${API_URL}/shipments/${shipment.shipment_id}?${params.toString()}`, {
         method: 'PATCH'
@@ -162,7 +129,7 @@ const ShippingManager = ({
     }
   }
   
- const saveBoxTruckPricing = async () => {
+  const saveBoxTruckPricing = async () => {
     try {
       const params = new URLSearchParams()
       if (btCost) params.append('quote_price', btCost)
@@ -179,7 +146,7 @@ const ShippingManager = ({
     }
   }
 
-const savePirateshipQuote = async () => {
+  const savePirateshipQuote = async () => {
     try {
       const params = new URLSearchParams()
       if (psQuoteUrl) params.append('ps_quote_url', psQuoteUrl)
@@ -198,10 +165,7 @@ const savePirateshipQuote = async () => {
 
   const openPirateshipQuote = () => {
     if (psQuoteUrl) {
-      const w = 800
-      const h = window.screen.height
-      const left = window.screen.width - w
-      window.open(psQuoteUrl, 'ShippingQuote', `width=${w},height=${h},left=${left},top=0,resizable=yes,scrollbars=yes`)
+      window.open(psQuoteUrl, '_blank')
     }
   }
 
@@ -209,42 +173,11 @@ const savePirateshipQuote = async () => {
     setPsSaved(false)
   }
 
-const openExternalSite = (url) => {
-    const w = 800
-    const h = window.screen.height
-    const left = window.screen.width - w
-    window.open(url, 'ShippingQuote', `width=${w},height=${h},left=${left},top=0,resizable=yes,scrollbars=yes`)
-    
-    // Show tip if not dismissed
-    if (shouldShowSnapTip()) {
-      alert('💡 Tip: Press Win+← on this window, then Win+→ on the quote window to snap side-by-side')
-    }
+  const openExternalSite = (url) => {
+    window.open(url, '_blank')
   }
   
-  const handleDismissTip = () => {
-    dismissTip()
-    setShowTip(false)
-  }
-  
-  // Snap tip component
-  const SnapTip = () => {
-    if (!showTip) return null
-    
-    return (
-      <div className="snap-tip">
-        <div className="snap-tip-content">
-          <strong>💡 Tip:</strong> Press <kbd>Win</kbd>+<kbd>←</kbd> to snap this window left, 
-          then <kbd>Win</kbd>+<kbd>→</kbd> on the other tab to snap right.
-        </div>
-        <label className="snap-tip-dismiss">
-          <input type="checkbox" onChange={handleDismissTip} />
-          Don't show again
-        </label>
-      </div>
-    )
-  }
-  
-  // Method selection view
+  // === METHOD SELECTION VIEW ===
   if (view === 'select') {
     return (
       <div className="shipping-manager">
@@ -267,16 +200,7 @@ const openExternalSite = (url) => {
           >
             <span className="method-icon">📦</span>
             <span className="method-name">Pirateship</span>
-            <span className="method-desc">UPS/USPS parcel</span>
-          </button>
-          
-          <button 
-            className={`method-btn ${method === 'Pickup' ? 'active' : ''}`}
-            onClick={() => handleMethodChange('Pickup')}
-          >
-            <span className="method-icon">🏪</span>
-            <span className="method-name">Pickup</span>
-            <span className="method-desc">Customer picks up</span>
+            <span className="method-desc">UPS/USPS parcels</span>
           </button>
           
           <button 
@@ -289,10 +213,19 @@ const openExternalSite = (url) => {
           </button>
           
           <button 
+            className={`method-btn ${method === 'Pickup' ? 'active' : ''}`}
+            onClick={() => handleMethodChange('Pickup')}
+          >
+            <span className="method-icon">🏪</span>
+            <span className="method-name">Pickup</span>
+            <span className="method-desc">Customer picks up</span>
+          </button>
+          
+          <button 
             className={`method-btn ${method === 'LiDelivery' ? 'active' : ''}`}
             onClick={() => handleMethodChange('LiDelivery')}
           >
-            <span className="method-icon">🏭</span>
+            <span className="method-icon">🚐</span>
             <span className="method-name">Li Delivery</span>
             <span className="method-desc">Li handles shipping</span>
           </button>
@@ -301,7 +234,7 @@ const openExternalSite = (url) => {
     )
   }
   
-  // RL Carriers view
+  // === RL CARRIERS VIEW ===
   if (view === 'rl') {
     if (loading) {
       return <div className="shipping-manager loading">Loading RL data...</div>
@@ -323,8 +256,6 @@ const openExternalSite = (url) => {
           <span className="current-method">LTL (RL Carriers)</span>
         </div>
         
-        <SnapTip />
-        
         <RLQuoteHelper 
           shipmentId={shipment.shipment_id}
           data={rlData}
@@ -336,7 +267,7 @@ const openExternalSite = (url) => {
     )
   }
   
-  // Pirateship view
+  // === PIRATESHIP VIEW ===
   if (view === 'pirateship') {
     return (
       <div className="shipping-manager">
@@ -345,9 +276,7 @@ const openExternalSite = (url) => {
           <span className="current-method">Pirateship</span>
         </div>
         
-        <SnapTip />
-        
-<div className="pirateship-helper">
+        <div className="pirateship-helper">
           <h3>Pirateship - Copy Address</h3>
 
           <CustomerAddress
@@ -378,31 +307,22 @@ const openExternalSite = (url) => {
 
           <div className="input-group full-width">
             <label>Quote URL (from Pirateship):</label>
-            <div className="url-input-row">
-              <input 
-                type="text"
-                value={psQuoteUrl}
-                onChange={(e) => setPsQuoteUrl(e.target.value)}
-                placeholder="https://ship.pirateship.com/..."
-                disabled={psSaved}
-              />
-            </div>
+            <input 
+              type="text"
+              value={psQuoteUrl}
+              onChange={(e) => setPsQuoteUrl(e.target.value)}
+              placeholder="https://ship.pirateship.com/..."
+              disabled={psSaved}
+            />
           </div>
 
           <div className="button-row">
             {psSaved ? (
-
               <>
-                <button 
-                  className="btn btn-success" 
-                  onClick={openPirateshipQuote}
-                >
+                <button className="btn btn-success" onClick={openPirateshipQuote}>
                   Open Quote
                 </button>
-                <button 
-                  className="btn btn-secondary" 
-                  onClick={handleChangePsUrl}
-                >
+                <button className="btn btn-secondary" onClick={handleChangePsUrl}>
                   Change URL
                 </button>
                 <button className="btn btn-secondary" onClick={handleSave}>
@@ -411,10 +331,7 @@ const openExternalSite = (url) => {
               </>
             ) : (
               <>
-                <button 
-                  className="btn btn-success" 
-                  onClick={savePirateshipQuote}
-                >
+                <button className="btn btn-success" onClick={savePirateshipQuote}>
                   Save Quote
                 </button>
                 <button className="btn btn-secondary" onClick={handleSave}>
@@ -428,7 +345,7 @@ const openExternalSite = (url) => {
     )
   }
 
-  // Li Delivery view
+  // === LI DELIVERY VIEW ===
   if (view === 'lidelivery') {
     return (
       <div className="shipping-manager">
@@ -439,11 +356,11 @@ const openExternalSite = (url) => {
         
         <div className="li-delivery-helper">
           <h3>Li Delivery Pricing</h3>
-          <p className="method-info">Li handles delivery. Enter quote for cost tracking.</p>
+          <p className="method-info">Li handles delivery. Enter cost and customer charge for tracking.</p>
           
           <div className="input-grid">
             <div className="input-group">
-              <label>Li Cost ($):</label>
+              <label>Our Cost ($):</label>
               <input 
                 type="number"
                 step="0.01"
@@ -465,9 +382,11 @@ const openExternalSite = (url) => {
             </div>
           </div>
           
-          <p className="profit-note">
-            Profit: ${(parseFloat(liCharge || 0) - parseFloat(liCost || 0)).toFixed(2)}
-          </p>
+          {liCost && liCharge && (
+            <p className="profit-note">
+              Profit: ${(parseFloat(liCharge || 0) - parseFloat(liCost || 0)).toFixed(2)}
+            </p>
+          )}
           
           <button className="btn btn-success" onClick={saveLiPricing}>
             Save Pricing
@@ -477,7 +396,7 @@ const openExternalSite = (url) => {
     )
   }
   
-  // Box Truck view
+  // === BOX TRUCK VIEW ===
   if (view === 'boxtruck') {
     return (
       <div className="shipping-manager">
@@ -528,7 +447,7 @@ const openExternalSite = (url) => {
     )
   }
   
-  // Simple tracking view (Pickup)
+  // === PICKUP/TRACKING VIEW ===
   if (view === 'tracking') {
     return (
       <div className="shipping-manager">
