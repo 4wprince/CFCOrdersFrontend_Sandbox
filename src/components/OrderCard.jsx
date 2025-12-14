@@ -76,6 +76,26 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
     ? `$${orderTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
     : ''
 
+// Calculate shipping totals safely
+const shippingTotals = (order.shipments || []).reduce(
+  (acc, shipment) => {
+    const customerCharge =
+      Number(shipment.customer_price) ||
+      Number(shipment.li_customer_price) ||
+      0
+
+    const cost =
+      Number(shipment.quote_price) ||
+      Number(shipment.li_quote_price) ||
+      0
+
+    acc.customerCharge += customerCharge
+    acc.profit += customerCharge - cost
+    return acc
+  },
+  { customerCharge: 0, profit: 0 }
+)
+
   // Handle status change
   const handleStatusChange = async (e) => {
   e.stopPropagation()
