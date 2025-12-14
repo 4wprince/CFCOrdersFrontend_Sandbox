@@ -19,6 +19,25 @@ const STATUS_MAP = {
   'complete': { label: 'Complete', color: '#9e9e9e' }
 }
 
+const getAgeLabel = (orderDate) => {
+  if (!orderDate) return ''
+
+  const created = new Date(orderDate)
+  const today = new Date()
+
+  // Normalize to midnight to avoid off-by-one issues
+  created.setHours(0, 0, 0, 0)
+  today.setHours(0, 0, 0, 0)
+
+  const diffDays = Math.floor(
+    (today - created) / (1000 * 60 * 60 * 24)
+  )
+
+  if (diffDays <= 0) return 'Today'
+  if (diffDays === 1) return '1 Day'
+  return `${diffDays} Days`
+}
+
 const STATUS_OPTIONS = [
   { value: 'needs_payment_link', label: '1-Need Invoice' },
   { value: 'awaiting_payment', label: '2-Awaiting Pay' },
@@ -28,13 +47,6 @@ const STATUS_OPTIONS = [
   { value: 'awaiting_shipment', label: '6-Ready Ship' },
   { value: 'complete', label: 'Complete' }
 ]
-
-// Format days open for display
-const formatDaysOpen = (days) => {
-  if (days === 0 || days === undefined || days === null) return 'Today'
-  if (days === 1) return '1 Day'
-  return `${days} Days`
-}
 
 const OrderCard = ({
   order,
@@ -163,59 +175,65 @@ const OrderCard = ({
     marginLeft: 'auto'
   }
 
-  return (
-    <div className="order-card" style={{ borderLeftColor: status.color }}>
-      <div className="order-header">
-        <div className="order-id" onClick={() => onOpenDetail(order)}>#{order.order_id}</div>
-        {orderDate && <div className="order-date">{orderDate}</div>}
-        <select
-          className="status-dropdown"
-          value={order.current_status || 'needs_payment_link'}
-          onChange={handleStatusChange}
-          onClick={(e) => e.stopPropagation()}
-          disabled={isUpdating}
-          style={{
-            backgroundColor: status.color + '20',
-            color: status.color,
-            borderColor: status.color
-          }}
-        >
-          {STATUS_OPTIONS.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-        <div style={badgeStyle}>{formatDaysOpen(order.days_open)}</div>
+return (
+  <div className="order-card" style={{ borderLeftColor: status.color }}>
+    <div className="order-header">
+  <div className="order-id" onClick={() => onOpenDetail(order)}>#{order.order_id}</div>
+  {orderDate && <div className="order-date">{orderDate}</div>}
+
+  <div className="order-header-right">
+    <select
+      className="status-dropdown"
+      value={order.current_status || 'needs_payment_link'}
+      onChange={handleStatusChange}
+      onClick={(e) => e.stopPropagation()}
+      disabled={isUpdating}
+      style={{
+        backgroundColor: status.color + '20',
+        color: status.color,
+        borderColor: status.color
+      }}
+    >
+      {STATUS_OPTIONS.map(opt => (
+        <option key={opt.value} value={opt.value}>{opt.label}</option>
+      ))}
+    </select>
+
+    <span className="order-age-pill">
+      {getAgeLabel(order.order_date)}
+    </span>
+  </div>
+</div>
+
+    <div className="order-body" onClick={() => onOpenDetail(order)}>
+      <div className="customer-info">
+        <div className="customer-name">{customerName}</div>
+        {location && <div className="customer-location">{location}</div>}
       </div>
 
-      <div className="order-body" onClick={() => onOpenDetail(order)}>
-        <div className="customer-info">
-          <div className="customer-name">{customerName}</div>
-          {location && <div className="customer-location">{location}</div>}
-        </div>
+      <div className="order-financials">
+        {totalDisplay && <div className="order-total">Order: {totalDisplay}</div>}
 
-        <div className="order-financials">
-          {totalDisplay && <div className="order-total">Order: {totalDisplay}</div>}
+        {/* Shipping cost summary */}
+        {shippingTotals && shippingTotals.customerCharge > 0 && (
+          <div className="shipping-summary">
+            <span className="ship-charge">Ship: ${shippingTotals.customerCharge.toFixed(2)}</span>
+            {shippingTotals.profit !== 0 && (
+              <span className={`ship-profit ${shippingTotals.profit >= 0 ? 'positive' : 'negative'}`}>
+                ({shippingTotals.profit >= 0 ? '+' : ''}${shippingTotals.profit.toFixed(2)})
+              </span>
+            )}
+          </div>
+        )}
 
-          {/* Shipping cost summary */}
-          {shippingTotals && shippingTotals.customerCharge > 0 && (
-            <div className="shipping-summary">
-              <span className="ship-charge">Ship: ${shippingTotals.customerCharge.toFixed(2)}</span>
-              {shippingTotals.profit !== 0 && (
-                <span className={`ship-profit ${shippingTotals.profit >= 0 ? 'positive' : 'negative'}`}>
-                  ({shippingTotals.profit >= 0 ? '+' : ''}${shippingTotals.profit.toFixed(2)})
-                </span>
-              )}
-            </div>
-          )}
+        {/* Grand total */}
+        {totalDisplay && shippingTotals && shippingTotals.customerCharge > 0 && (
+          <div className="grand-total">
+            Total: ${(orderTotal + shippingTotals.customerCharge).toFixed(2)}
+          </div>
+        )}
 
-          {/* Grand total */}
-          {totalDisplay && shippingTotals && shippingTotals.customerCharge > 0 && (
-            <div className="grand-total">
-              Total: ${(orderTotal + shippingTotals.customerCharge).toFixed(2)}
-            </div>
-          )}
-        </div>
-
+      </div>
         {warehouses.length > 0 && (
           <div className="warehouses">
             {warehouses.map((wh, i) => (
