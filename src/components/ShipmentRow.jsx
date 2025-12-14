@@ -4,7 +4,7 @@
  * v5.8.4 - Shipping button for all methods, mailto from CFC email
  */
 
-import { useState } from 'react'
+import { API_URL } from '../config'
 
 const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
@@ -22,8 +22,6 @@ const METHOD_OPTIONS = [
   { value: 'BoxTruck', label: 'BoxTruck' },
   { value: 'LiDelivery', label: 'LiDelivery' }
 ]
-
-const API_URL = 'https://cfc-backend-b83s.onrender.com'
 
 const ShipmentRow = ({ 
   shipment, 
