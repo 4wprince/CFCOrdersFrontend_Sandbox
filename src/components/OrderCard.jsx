@@ -7,7 +7,7 @@
 import { useState } from 'react'
 import ShipmentRow from './ShipmentRow'
 
-const API_URL = 'https://cfcorderbackend-sandbox.onrender.com'
+import { API_URL } from '../config'
 
 const STATUS_MAP = {
   'needs_payment_link': { label: '1-Need Invoice', color: '#f44336' },

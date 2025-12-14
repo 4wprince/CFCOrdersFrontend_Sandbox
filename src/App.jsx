@@ -15,8 +15,7 @@ import OrderCard from './components/OrderCard'
 import ShippingManager from './components/ShippingManager'
 import OrderComments from './components/OrderComments'
 
-const API_URL = 'https://cfcorderbackend-sandbox.onrender.com'
-const APP_PASSWORD = 'cfc2025'
+import { API_URL, APP_PASSWORD } from './config'
 
 // Status mapping for display
 const STATUS_MAP = {

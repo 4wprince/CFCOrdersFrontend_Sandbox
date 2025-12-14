@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react'
 import RLQuoteHelper from './RLQuoteHelper'
 import { CustomerAddress } from './CustomerAddress'
 
-const API_URL = 'https://cfc-backend-b83s.onrender.com'
+import { API_URL } from '../config'
 
 // Check if we should show the snap tip
 const shouldShowSnapTip = () => {

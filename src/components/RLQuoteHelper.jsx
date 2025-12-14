@@ -7,7 +7,7 @@
 import { useState } from 'react'
 import { CustomerAddress, BillToAddress, CopyButton } from './CustomerAddress'
 
-const API_URL = 'https://cfc-backend-b83s.onrender.com'
+import { API_URL } from '../config'
 
 const RLQuoteHelper = ({ shipmentId, data, onClose, onSave, onOpenRL }) => {
   const [quoteNumber, setQuoteNumber] = useState(data.existing_quote?.quote_number || '')

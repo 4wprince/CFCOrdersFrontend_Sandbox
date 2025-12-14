@@ -6,7 +6,7 @@
 
 import { useState } from 'react'
 
-const API_URL = 'https://cfc-backend-b83s.onrender.com'
+import { API_URL } from '../config'
 
 const OrderComments = ({ order, onUpdate }) => {
   const [notes, setNotes] = useState(order.notes || '')
