@@ -88,86 +88,27 @@ const OrderCard = ({
 
   setIsUpdating(true)
   try {
-    const statusFieldMap = {
-      needs_payment_link: { payment_link_sent: false, payment_received: false },
-      awaiting_payment: { payment_link_sent: true, payment_received: false },
-      needs_warehouse_order: { payment_received: true, sent_to_warehouse: false },
-      awaiting_warehouse: { sent_to_warehouse: true, warehouse_confirmed: false },
-      needs_bol: { warehouse_confirmed: true, bol_sent: false },
-      awaiting_shipment: { bol_sent: true, is_complete: false },
-      complete: { is_complete: true }
-    }
-
-    const updates = statusFieldMap[newStatus] || {}
-
     const res = await fetch(`${API_URL}/orders/${order.order_id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates)
+      body: JSON.stringify({
+        current_status: newStatus
+      })
     })
 
     if (!res.ok) {
       const msg = await res.text()
-      throw new Error(`PATCH failed ${res.status}: ${msg}`)
+      throw new Error(msg)
     }
 
     if (onUpdate) onUpdate()
   } catch (err) {
-    console.error('Failed to update status:', err)
-    alert('Status update failed. Open console for details.')
+    alert('Status update failed')
   } finally {
     setIsUpdating(false)
   }
 }
-
-  // Calculate shipping totals from shipments
-  const calculateShippingTotals = () => {
-    if (!order.shipments || order.shipments.length === 0) return null
-
-    let quotedTotal = 0
-    let customerChargeTotal = 0
-    let actualCostTotal = 0
-    let allQuoted = true
-
-    order.shipments.forEach(s => {
-      // Customer charge (what we charge)
-      if (s.rl_customer_price) {
-        customerChargeTotal += parseFloat(s.rl_customer_price)
-      } else if (s.li_customer_price) {
-        customerChargeTotal += parseFloat(s.li_customer_price)
-      } else if (s.customer_price) {
-        customerChargeTotal += parseFloat(s.customer_price)
-      } else if (s.ps_quote_price) {
-        customerChargeTotal += parseFloat(s.ps_quote_price)
-      } else if (s.ship_method === 'Pickup') {
-        // No charge for pickup
-      } else {
-        allQuoted = false
-      }
-
-      // Our cost (what we pay)
-      if (s.rl_quote_price) {
-        quotedTotal += parseFloat(s.rl_quote_price)
-      } else if (s.li_quote_price) {
-        quotedTotal += parseFloat(s.li_quote_price)
-      } else if (s.quote_price) {
-        quotedTotal += parseFloat(s.quote_price)
-      } else if (s.ps_quote_price) {
-        quotedTotal += parseFloat(s.ps_quote_price)
-      }
-    })
-
-    return {
-      quoted: quotedTotal,
-      customerCharge: customerChargeTotal,
-      actualCost: actualCostTotal,
-      profit: customerChargeTotal - quotedTotal,
-      actualProfit: actualCostTotal > 0 ? customerChargeTotal - actualCostTotal : null,
-      allQuoted
-    }
-  }
-
-  const shippingTotals = calculateShippingTotals()
+  
 
   // Style for the black oval badge
   const badgeStyle = {
