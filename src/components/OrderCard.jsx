@@ -1,7 +1,7 @@
 /**
  * OrderCard.jsx
  * Display a single order with status, customer info, shipments, and shipping cost tally
- * v5.8.6 - Added order date in header, status dropdown on card
+ * v5.8.7 - Black oval days badge showing Today/1 Day/2 Days
  */
 
 import { useState } from 'react'
@@ -29,24 +29,31 @@ const STATUS_OPTIONS = [
   { value: 'complete', label: 'Complete' }
 ]
 
-const OrderCard = ({ 
-  order, 
+// Format days open for display
+const formatDaysOpen = (days) => {
+  if (days === 0 || days === undefined || days === null) return 'Today'
+  if (days === 1) return '1 Day'
+  return `${days} Days`
+}
+
+const OrderCard = ({
+  order,
   onOpenDetail,
   onOpenShippingManager,
-  onUpdate 
+  onUpdate
 }) => {
   const [isUpdating, setIsUpdating] = useState(false)
   const status = STATUS_MAP[order.current_status] || STATUS_MAP['needs_payment_link']
-  
+
   // Get customer display info
   const customerName = order.company_name || order.customer_name || 'Unknown'
   const location = order.city && order.state ? `${order.city}, ${order.state}` : ''
-  
+
   // Format order date
-  const orderDate = order.order_date 
+  const orderDate = order.order_date
     ? new Date(order.order_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : ''
-  
+
   // Get warehouses from order
   const warehouses = [
     order.warehouse_1,
@@ -54,19 +61,19 @@ const OrderCard = ({
     order.warehouse_3,
     order.warehouse_4
   ].filter(Boolean)
-  
+
   // Format order total
   const orderTotal = parseFloat(order.order_total || 0)
-  const totalDisplay = orderTotal > 0 
+  const totalDisplay = orderTotal > 0
     ? `$${orderTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
     : ''
-  
+
   // Handle status change
   const handleStatusChange = async (e) => {
     e.stopPropagation()
     const newStatus = e.target.value
     if (newStatus === order.current_status) return
-    
+
     setIsUpdating(true)
     try {
       // Map status to the appropriate boolean field
@@ -79,31 +86,31 @@ const OrderCard = ({
         'awaiting_shipment': { bol_sent: true, is_complete: false },
         'complete': { is_complete: true }
       }
-      
+
       const updates = statusFieldMap[newStatus] || {}
-      
+
       await fetch(`${API_URL}/orders/${order.order_id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates)
       })
-      
+
       if (onUpdate) onUpdate()
     } catch (err) {
       console.error('Failed to update status:', err)
     }
     setIsUpdating(false)
   }
-  
+
   // Calculate shipping totals from shipments
   const calculateShippingTotals = () => {
     if (!order.shipments || order.shipments.length === 0) return null
-    
+
     let quotedTotal = 0
     let customerChargeTotal = 0
     let actualCostTotal = 0
     let allQuoted = true
-    
+
     order.shipments.forEach(s => {
       // Customer charge (what we charge)
       if (s.rl_customer_price) {
@@ -119,7 +126,7 @@ const OrderCard = ({
       } else {
         allQuoted = false
       }
-      
+
       // Our cost (what we pay)
       if (s.rl_quote_price) {
         quotedTotal += parseFloat(s.rl_quote_price)
@@ -131,7 +138,7 @@ const OrderCard = ({
         quotedTotal += parseFloat(s.ps_quote_price)
       }
     })
-    
+
     return {
       quoted: quotedTotal,
       customerCharge: customerChargeTotal,
@@ -141,22 +148,34 @@ const OrderCard = ({
       allQuoted
     }
   }
-  
+
   const shippingTotals = calculateShippingTotals()
-  
+
+  // Style for the black oval badge
+  const badgeStyle = {
+    backgroundColor: '#000',
+    color: '#fff',
+    padding: '4px 12px',
+    borderRadius: '20px',
+    fontSize: '12px',
+    fontWeight: '500',
+    whiteSpace: 'nowrap',
+    marginLeft: 'auto'
+  }
+
   return (
     <div className="order-card" style={{ borderLeftColor: status.color }}>
       <div className="order-header">
         <div className="order-id" onClick={() => onOpenDetail(order)}>#{order.order_id}</div>
         {orderDate && <div className="order-date">{orderDate}</div>}
-        <select 
+        <select
           className="status-dropdown"
           value={order.current_status || 'needs_payment_link'}
           onChange={handleStatusChange}
           onClick={(e) => e.stopPropagation()}
           disabled={isUpdating}
-          style={{ 
-            backgroundColor: status.color + '20', 
+          style={{
+            backgroundColor: status.color + '20',
             color: status.color,
             borderColor: status.color
           }}
@@ -165,20 +184,18 @@ const OrderCard = ({
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
-        {order.days_open > 0 && (
-          <div className="days-open">{order.days_open}d</div>
-        )}
+        <div style={badgeStyle}>{formatDaysOpen(order.days_open)}</div>
       </div>
-      
+
       <div className="order-body" onClick={() => onOpenDetail(order)}>
         <div className="customer-info">
           <div className="customer-name">{customerName}</div>
           {location && <div className="customer-location">{location}</div>}
         </div>
-        
+
         <div className="order-financials">
           {totalDisplay && <div className="order-total">Order: {totalDisplay}</div>}
-          
+
           {/* Shipping cost summary */}
           {shippingTotals && shippingTotals.customerCharge > 0 && (
             <div className="shipping-summary">
@@ -190,7 +207,7 @@ const OrderCard = ({
               )}
             </div>
           )}
-          
+
           {/* Grand total */}
           {totalDisplay && shippingTotals && shippingTotals.customerCharge > 0 && (
             <div className="grand-total">
@@ -198,7 +215,7 @@ const OrderCard = ({
             </div>
           )}
         </div>
-        
+
         {warehouses.length > 0 && (
           <div className="warehouses">
             {warehouses.map((wh, i) => (
@@ -207,12 +224,12 @@ const OrderCard = ({
           </div>
         )}
       </div>
-      
+
       {/* Shipments section */}
       {order.shipments && order.shipments.length > 0 && (
         <div className="order-shipments">
           {order.shipments.map((shipment, i) => (
-            <ShipmentRow 
+            <ShipmentRow
               key={shipment.shipment_id || i}
               shipment={shipment}
               order={order}
@@ -222,10 +239,10 @@ const OrderCard = ({
           ))}
         </div>
       )}
-      
+
       {/* Quick actions */}
       <div className="order-actions">
-        <button 
+        <button
           className="btn btn-sm"
           onClick={(e) => {
             e.stopPropagation()
