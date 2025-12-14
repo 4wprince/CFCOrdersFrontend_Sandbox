@@ -176,26 +176,32 @@ body {
 
 .order-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 1rem;
-  background: #fafafa;
-  border-bottom: 1px solid #eee;
-  cursor: pointer;
+  gap: 8px;
+}
+
+.order-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .order-age-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #000;
-  color: #fff;
+
+  background-color: #000 !important;
+  color: #fff !important;
+
   border-radius: 999px;
-  padding: 2px 10px;
-  font-size: 0.75rem;
+  padding: 4px 12px;
+
+  font-size: 12px;
   font-weight: 700;
-  line-height: 1.2;
-  white-space: nowrap;
+  line-height: 1;
+
+  box-shadow: 0 0 0 1px #000;
 }
 
 .order-id {
