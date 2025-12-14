@@ -4,6 +4,7 @@
  * v5.8.4 - Shipping button for all methods, mailto from CFC email
  */
 
+import { useState } from 'react'
 import { API_URL } from '../config'
 
 const STATUS_OPTIONS = [
@@ -49,6 +50,7 @@ const ShipmentRow = ({
   const handleMethodChange = async (newMethod) => {
     setUpdating(true)
     try {
+
       await fetch(`${API_URL}/shipments/${shipment.shipment_id}?ship_method=${newMethod}`, {
         method: 'PATCH'
       })
