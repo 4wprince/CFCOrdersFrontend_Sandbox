@@ -1,50 +1,69 @@
 /**
  * OrderCard.jsx
  * Display a single order with status, customer info, shipments
- * v5.9.1 - Uses helper files, color-coded dropdown, full address, fixed status endpoint
+ * v5.9.2 - Fixed: address format, removed Details button, no Canceled option
  */
 
 import { useState } from 'react'
 import ShipmentRow from './ShipmentRow'
-import { 
-  STATUS_MAP, 
-  STATUS_OPTIONS, 
-  getStatusInfo, 
-  getStatusColor,
-  getAgeLabel 
-} from '../helpers/statusHelpers'
-import { 
-  getCustomerName, 
-  formatStreetAddress, 
-  getDisplayLocation 
-} from '../helpers/addressHelpers'
-import { updateOrderStatus } from '../helpers/syncHelpers'
-import { orderHasCriticalFlags, getCriticalBadges } from '../helpers/criticalHelpers'
 import { API_URL } from '../config'
+
+const STATUS_MAP = {
+  'needs_payment_link': { label: '1-Need Invoice', color: '#f44336' },
+  'awaiting_payment': { label: '2-Awaiting Pay', color: '#ff9800' },
+  'needs_warehouse_order': { label: '3-Need to Order', color: '#9c27b0' },
+  'awaiting_warehouse': { label: '4-At Warehouse', color: '#2196f3' },
+  'needs_bol': { label: '5-Need BOL', color: '#00bcd4' },
+  'awaiting_shipment': { label: '6-Ready Ship', color: '#4caf50' },
+  'complete': { label: 'Complete', color: '#9e9e9e' }
+}
+
+const STATUS_OPTIONS = [
+  { value: 'needs_payment_link', label: '1-Need Invoice' },
+  { value: 'awaiting_payment', label: '2-Awaiting Pay' },
+  { value: 'needs_warehouse_order', label: '3-Need to Order' },
+  { value: 'awaiting_warehouse', label: '4-At Warehouse' },
+  { value: 'needs_bol', label: '5-Need BOL' },
+  { value: 'awaiting_shipment', label: '6-Ready Ship' },
+  { value: 'complete', label: 'Complete' }
+]
+
+const getAgeLabel = (orderDate) => {
+  if (!orderDate) return ''
+  const created = new Date(orderDate)
+  const today = new Date()
+  created.setHours(0, 0, 0, 0)
+  today.setHours(0, 0, 0, 0)
+  const diffDays = Math.floor((today - created) / (1000 * 60 * 60 * 24))
+  if (diffDays <= 0) return 'Today'
+  if (diffDays === 1) return '1 Day'
+  return `${diffDays} Days`
+}
 
 const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => {
   if (!order) return null
   
   const [isUpdating, setIsUpdating] = useState(false)
-  
-  const status = getStatusInfo(order.current_status)
-  const statusColor = getStatusColor(order.current_status)
+  const status = STATUS_MAP[order.current_status] || STATUS_MAP['needs_payment_link']
 
-  // Get customer display info using helpers
-  const customerName = getCustomerName(order)
-  const location = getDisplayLocation(order)
-  const streetAddress = formatStreetAddress(order)
+  // Customer info
+  const customerName = order.company_name || order.customer_name || 'Unknown'
   
-  // Check for critical flags
-  const hasCritical = orderHasCriticalFlags(order)
-  const criticalBadges = hasCritical ? getCriticalBadges(order.comments + ' ' + order.notes) : []
+  // Format address: City, State ZIP on one line
+  const cityStateZip = [
+    order.city,
+    order.state ? `${order.state}${order.zip_code ? ' ' + order.zip_code : ''}` : order.zip_code
+  ].filter(Boolean).join(', ')
+  
+  // Street address (separate line)
+  const streetAddress = order.street || ''
 
   // Format order date
   const orderDate = order.order_date
     ? new Date(order.order_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : ''
 
-  // Get warehouses from order
+  // Get warehouses
   const warehouses = [
     order.warehouse_1,
     order.warehouse_2,
@@ -58,19 +77,21 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
     ? `$${orderTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
     : ''
 
-  // Calculate shipping totals safely
+  // Calculate shipping totals
   const shippingTotals = (order.shipments || []).reduce(
     (acc, shipment) => {
       const customerCharge =
-        Number(shipment.customer_price) ||
         Number(shipment.rl_customer_price) ||
         Number(shipment.li_customer_price) ||
+        Number(shipment.customer_price) ||
+        Number(shipment.ps_quote_price) ||
         0
 
       const cost =
-        Number(shipment.quote_price) ||
         Number(shipment.rl_quote_price) ||
         Number(shipment.li_quote_price) ||
+        Number(shipment.quote_price) ||
+        Number(shipment.ps_quote_price) ||
         0
 
       acc.customerCharge += customerCharge
@@ -80,36 +101,40 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
     { customerCharge: 0, profit: 0 }
   )
 
-  // Handle status change - use correct endpoint
+  // Handle status change - use set-status endpoint
   const handleStatusChange = async (e) => {
     e.stopPropagation()
     const newStatus = e.target.value
     if (newStatus === order.current_status) return
 
     setIsUpdating(true)
-    
-    const result = await updateOrderStatus(API_URL, order.order_id, newStatus)
-    
-    if (result.success) {
+    try {
+      const res = await fetch(
+        `${API_URL}/orders/${order.order_id}/set-status?status=${newStatus}&source=web_ui`,
+        { method: 'PATCH' }
+      )
+
+      if (!res.ok) {
+        const msg = await res.text()
+        throw new Error(msg)
+      }
+
       if (onUpdate) onUpdate()
-    } else {
-      alert('Status update failed: ' + result.error)
+    } catch (err) {
+      alert('Status update failed: ' + err.message)
+    } finally {
+      setIsUpdating(false)
     }
-    
-    setIsUpdating(false)
   }
 
-  // Format AI summary - remove double newlines
+  // Format AI summary - clean up
   const formatAISummary = (summary) => {
     if (!summary) return ''
     return summary.replace(/\n{2,}/g, '\n').trim()
   }
 
   return (
-    <div 
-      className={`order-card ${hasCritical ? 'has-critical' : ''}`} 
-      style={{ borderLeftColor: statusColor }}
-    >
+    <div className="order-card" style={{ borderLeftColor: status.color }}>
       {/* Header */}
       <div className="order-header">
         <div className="order-id" onClick={() => onOpenDetail(order)}>
@@ -118,7 +143,6 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
         {orderDate && <div className="order-date">{orderDate}</div>}
 
         <div className="order-header-right">
-          {/* Color-coded status dropdown */}
           <select
             className="status-dropdown"
             value={order.current_status || 'needs_payment_link'}
@@ -126,19 +150,13 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
             onClick={(e) => e.stopPropagation()}
             disabled={isUpdating}
             style={{
-              backgroundColor: statusColor + '20',
-              color: statusColor,
-              borderColor: statusColor
+              backgroundColor: status.color + '20',
+              color: status.color,
+              borderColor: status.color
             }}
           >
             {STATUS_OPTIONS.map(opt => (
-              <option 
-                key={opt.value} 
-                value={opt.value}
-                style={{ color: opt.color }}
-              >
-                {opt.label}
-              </option>
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
 
@@ -152,8 +170,7 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
       <div className="order-body" onClick={() => onOpenDetail(order)}>
         <div className="customer-info">
           <div className="customer-name">{customerName}</div>
-          {location && <div className="customer-location">{location}</div>}
-          {/* Full street address */}
+          {cityStateZip && <div className="customer-location">{cityStateZip}</div>}
           {streetAddress && (
             <div className="customer-street" style={{ fontSize: '12px', color: '#666' }}>
               {streetAddress}
@@ -161,33 +178,9 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
           )}
         </div>
 
-        {/* Critical badges */}
-        {hasCritical && criticalBadges.length > 0 && (
-          <div className="critical-badges">
-            {criticalBadges.map((badge, i) => (
-              <span 
-                key={i} 
-                className="critical-badge"
-                style={{
-                  backgroundColor: '#d32f2f',
-                  color: '#fff',
-                  fontSize: '10px',
-                  fontWeight: '600',
-                  padding: '2px 6px',
-                  borderRadius: '10px',
-                  marginRight: '4px'
-                }}
-              >
-                {badge}
-              </span>
-            ))}
-          </div>
-        )}
-
         <div className="order-financials">
           {totalDisplay && <div className="order-total">Order: {totalDisplay}</div>}
 
-          {/* Shipping cost summary */}
           {shippingTotals && shippingTotals.customerCharge > 0 && (
             <div className="shipping-summary">
               <span className="ship-charge">Ship: ${shippingTotals.customerCharge.toFixed(2)}</span>
@@ -199,7 +192,6 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
             </div>
           )}
 
-          {/* Grand total */}
           {totalDisplay && shippingTotals && shippingTotals.customerCharge > 0 && (
             <div className="grand-total">
               Total: ${(orderTotal + shippingTotals.customerCharge).toFixed(2)}
@@ -216,7 +208,7 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
         )}
       </div>
 
-      {/* Shipments section */}
+      {/* Shipments */}
       {order.shipments && order.shipments.length > 0 && (
         <div className="order-shipments">
           {(order.shipments || []).map((shipment, i) =>
@@ -231,59 +223,50 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
         </div>
       )}
 
-      {/* Comments section - show with critical highlighting */}
+      {/* Comments - styled box */}
       {order.comments && (
-        <div 
-          className={`order-comments ${hasCritical ? 'has-critical' : ''}`}
-          style={hasCritical ? { 
-            backgroundColor: '#ffebee', 
-            padding: '8px', 
-            borderRadius: '4px',
-            marginTop: '8px'
-          } : { marginTop: '8px' }}
-        >
-          <strong>Customer: </strong>
-          <span style={hasCritical ? { color: '#d32f2f', fontWeight: '600' } : {}}>
-            {order.comments}
-          </span>
+        <div style={{ 
+          backgroundColor: '#fff3e0', 
+          padding: '8px 12px', 
+          borderRadius: '4px',
+          marginTop: '8px',
+          borderLeft: '3px solid #ff9800'
+        }}>
+          <strong style={{ color: '#e65100' }}>Customer: </strong>
+          <span>{order.comments}</span>
         </div>
       )}
 
-      {/* Notes */}
+      {/* Notes - styled box */}
       {order.notes && (
-        <div className="order-notes" style={{ marginTop: '4px', fontSize: '13px', color: '#666' }}>
-          <strong>Notes: </strong>{order.notes}
+        <div style={{ 
+          backgroundColor: '#e3f2fd', 
+          padding: '8px 12px', 
+          borderRadius: '4px',
+          marginTop: '8px',
+          borderLeft: '3px solid #2196f3'
+        }}>
+          <strong style={{ color: '#1565c0' }}>Notes: </strong>
+          <span>{order.notes}</span>
         </div>
       )}
 
       {/* AI Summary */}
       {order.ai_summary && (
-        <div className="ai-summary" style={{ 
-          marginTop: '8px', 
-          padding: '8px', 
+        <div style={{ 
           backgroundColor: '#f5f5f5', 
+          padding: '8px 12px', 
           borderRadius: '4px',
+          marginTop: '8px',
+          borderLeft: '3px solid #667eea',
           fontSize: '13px'
         }}>
-          <strong>AI Summary:</strong>
+          <strong style={{ color: '#667eea' }}>AI Summary:</strong>
           <div style={{ whiteSpace: 'pre-line', marginTop: '4px' }}>
             {formatAISummary(order.ai_summary)}
           </div>
         </div>
       )}
-
-      {/* Quick actions */}
-      <div className="order-actions">
-        <button
-          className="btn btn-sm"
-          onClick={(e) => {
-            e.stopPropagation()
-            onOpenDetail(order)
-          }}
-        >
-          Details
-        </button>
-      </div>
     </div>
   )
 }

@@ -1,20 +1,30 @@
 /**
  * ShipmentRow.jsx
  * Display a single warehouse shipment with status, method, and actions
- * v5.9.1 - Uses helper files, correct backend values, track button fix
+ * v5.9.2 - Correct backend status values, track button always shows
  */
 
 import { useState } from 'react'
-import { 
-  SHIPMENT_STATUS_OPTIONS, 
-  SHIP_METHOD_OPTIONS 
-} from '../helpers/statusHelpers'
-import { 
-  updateShipmentStatus, 
-  updateShipmentMethod, 
-  saveTrackingNumber 
-} from '../helpers/syncHelpers'
 import { API_URL } from '../config'
+
+// Backend status values
+const STATUS_OPTIONS = [
+  { value: 'needs_order', label: 'Pending' },
+  { value: 'at_warehouse', label: 'At Warehouse' },
+  { value: 'needs_bol', label: 'Needs BOL' },
+  { value: 'ready_ship', label: 'Ready Ship' },
+  { value: 'shipped', label: 'Shipped' },
+  { value: 'delivered', label: 'Delivered' }
+]
+
+const METHOD_OPTIONS = [
+  { value: '', label: 'Select...' },
+  { value: 'LTL', label: 'LTL' },
+  { value: 'Pirateship', label: 'Pirateship' },
+  { value: 'Pickup', label: 'Pickup' },
+  { value: 'BoxTruck', label: 'BoxTruck' },
+  { value: 'LiDelivery', label: 'Li_Delivery' }
+]
 
 const ShipmentRow = ({ 
   shipment, 
@@ -29,31 +39,33 @@ const ShipmentRow = ({
   const handleStatusChange = async (e) => {
     const newStatus = e.target.value
     setUpdating(true)
-    
-    const result = await updateShipmentStatus(API_URL, shipment.shipment_id, newStatus)
-    
-    if (result.success && onUpdate) {
-      onUpdate()
+    try {
+      await fetch(`${API_URL}/shipments/${shipment.shipment_id}?status=${newStatus}`, {
+        method: 'PATCH'
+      })
+      if (onUpdate) onUpdate()
+    } catch (err) {
+      console.error('Failed to update status:', err)
     }
-    
     setUpdating(false)
   }
   
   const handleMethodChange = async (e) => {
     const newMethod = e.target.value
     setUpdating(true)
-    
-    const result = await updateShipmentMethod(API_URL, shipment.shipment_id, newMethod)
-    
-    if (result.success) {
+    try {
+      await fetch(`${API_URL}/shipments/${shipment.shipment_id}?ship_method=${newMethod}`, {
+        method: 'PATCH'
+      })
       if (onUpdate) onUpdate()
       
       // Open shipping manager for methods that need helpers
       if (newMethod && newMethod !== 'Pickup') {
         onOpenShippingManager(shipment)
       }
+    } catch (err) {
+      console.error('Failed to update method:', err)
     }
-    
     setUpdating(false)
   }
   
@@ -61,17 +73,24 @@ const ShipmentRow = ({
     if (!trackingNumber.trim()) return
     
     setUpdating(true)
-    
-    const result = await saveTrackingNumber(API_URL, shipment.shipment_id, trackingNumber)
-    
-    if (result.success) {
+    try {
+      await fetch(`${API_URL}/shipments/${shipment.shipment_id}?tracking_number=${encodeURIComponent(trackingNumber)}`, {
+        method: 'PATCH'
+      })
+      
+      // Update status to shipped
+      await fetch(`${API_URL}/shipments/${shipment.shipment_id}?status=shipped`, {
+        method: 'PATCH'
+      })
+      
       if (onUpdate) onUpdate()
       setShowTrackingInput(false)
       
       // Open mailto with tracking info
       sendTrackingEmail()
+    } catch (err) {
+      console.error('Failed to save tracking:', err)
     }
-    
     setUpdating(false)
   }
   
@@ -122,9 +141,6 @@ The Cabinets For Contractors Team`
       Number(shipment.li_customer_price) ||
       Number(shipment.ps_quote_price) ||
       Number(shipment.customer_price) ||
-      Number(shipment.rl_quote_price) ||
-      Number(shipment.li_quote_price) ||
-      Number(shipment.quote_price) ||
       0
     
     return cost > 0 ? `$${cost.toFixed(2)}` : ''
@@ -138,16 +154,14 @@ The Cabinets For Contractors Team`
                        shipment.rl_customer_price || shipment.li_customer_price
 
   // Should show track button? YES for all methods except Pickup and LiDelivery
-  // FIX: Show track button even if quote info exists
   const showTrackButton = shipment.ship_method !== 'Pickup' && shipment.ship_method !== 'LiDelivery'
   
   return (
     <div className={`shipment-row ${updating ? 'updating' : ''}`}>
       <div className="shipment-warehouse">
         <strong>{shipment.warehouse}</strong>
-        {/* Show cost next to warehouse name */}
         {shippingCost && (
-          <span className="shipping-cost" style={{ color: '#2e7d32', marginLeft: '8px' }}>
+          <span style={{ color: '#2e7d32', marginLeft: '8px' }}>
             — {shippingCost}
           </span>
         )}
@@ -162,7 +176,7 @@ The Cabinets For Contractors Team`
           className="status-select"
           style={{ minWidth: '110px' }}
         >
-          {SHIPMENT_STATUS_OPTIONS.map(opt => (
+          {STATUS_OPTIONS.map(opt => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
@@ -174,7 +188,7 @@ The Cabinets For Contractors Team`
           className="method-select"
           style={{ minWidth: '100px' }}
         >
-          {SHIP_METHOD_OPTIONS.map(opt => (
+          {METHOD_OPTIONS.map(opt => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
@@ -188,7 +202,7 @@ The Cabinets For Contractors Team`
           Shipping
         </button>
         
-        {/* Tracking input/display - FIX: Show regardless of quote info */}
+        {/* Tracking input/display - show for all except Pickup/LiDelivery */}
         {showTrackButton && (
           <>
             {shipment.tracking_number ? (
