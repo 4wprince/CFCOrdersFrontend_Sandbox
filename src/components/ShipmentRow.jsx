@@ -1,7 +1,7 @@
 /**
  * ShipmentRow.jsx
  * Display a single warehouse shipment with status, method, and actions
- * v5.9.2 - Correct backend status values, track button always shows
+ * v5.9.3 - Send tracking via B2BWave API (auto-emails customer)
  */
 
 import { useState } from 'react'
@@ -35,6 +35,7 @@ const ShipmentRow = ({
   const [updating, setUpdating] = useState(false)
   const [showTrackingInput, setShowTrackingInput] = useState(false)
   const [trackingNumber, setTrackingNumber] = useState(shipment.tracking_number || '')
+  const [sendStatus, setSendStatus] = useState(null) // 'sending', 'success', 'error'
   
   const handleStatusChange = async (e) => {
     const newStatus = e.target.value
@@ -69,7 +70,52 @@ const ShipmentRow = ({
     setUpdating(false)
   }
   
-  const handleSaveTracking = async () => {
+  // Send tracking via B2BWave API (auto-emails customer)
+  const handleSaveAndSendTracking = async () => {
+    if (!trackingNumber.trim()) return
+    
+    const orderId = order?.order_id || shipment.order_id
+    
+    setUpdating(true)
+    setSendStatus('sending')
+    
+    try {
+      // Call backend which calls B2BWave API with notify=true
+      const url = `${API_URL}/orders/${orderId}/send-tracking?tracking_number=${encodeURIComponent(trackingNumber)}&shipment_id=${shipment.shipment_id}`
+      
+      const response = await fetch(url, { method: 'POST' })
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(errorText || 'Failed to send tracking')
+      }
+      
+      setSendStatus('success')
+      
+      // Also update local shipment status
+      await fetch(`${API_URL}/shipments/${shipment.shipment_id}?status=shipped`, {
+        method: 'PATCH'
+      })
+      
+      if (onUpdate) onUpdate()
+      
+      // Hide input after success
+      setTimeout(() => {
+        setShowTrackingInput(false)
+        setSendStatus(null)
+      }, 2000)
+      
+    } catch (err) {
+      console.error('Failed to send tracking:', err)
+      setSendStatus('error')
+      alert('Failed to send tracking: ' + err.message)
+    }
+    
+    setUpdating(false)
+  }
+  
+  // Save tracking without sending email (just update database)
+  const handleSaveOnly = async () => {
     if (!trackingNumber.trim()) return
     
     setUpdating(true)
@@ -78,60 +124,17 @@ const ShipmentRow = ({
         method: 'PATCH'
       })
       
-      // Update status to shipped
       await fetch(`${API_URL}/shipments/${shipment.shipment_id}?status=shipped`, {
         method: 'PATCH'
       })
       
       if (onUpdate) onUpdate()
       setShowTrackingInput(false)
-      
-      // Open mailto with tracking info
-      sendTrackingEmail()
     } catch (err) {
       console.error('Failed to save tracking:', err)
+      alert('Failed to save tracking')
     }
     setUpdating(false)
-  }
-  
-  const sendTrackingEmail = () => {
-    const customerEmail = order?.email || ''
-    const customerName = order?.customer_name || 'Valued Customer'
-    const companyName = order?.company_name || customerName
-    const orderId = order?.order_id || shipment.order_id
-    const firstName = customerName.split(' ')[0]
-    
-    // Determine carrier and tracking URL
-    let carrier = 'Freight'
-    let trackingUrl = ''
-    
-    if (shipment.ship_method === 'LTL') {
-      carrier = 'RL Carriers'
-      trackingUrl = `https://www.rlcarriers.com/freight/shipping/shipment-tracing?pro=${trackingNumber}`
-    } else if (shipment.ship_method === 'Pirateship' || shipment.ship_method === 'BoxTruck') {
-      if (trackingNumber.startsWith('1Z')) {
-        carrier = 'UPS'
-        trackingUrl = `https://www.ups.com/track?tracknum=${trackingNumber}`
-      } else if (trackingNumber.length === 22 || trackingNumber.length === 26) {
-        carrier = 'USPS'
-        trackingUrl = `https://tools.usps.com/go/TrackConfirmAction?tLabels=${trackingNumber}`
-      }
-    }
-    
-    const subject = `${companyName}, please see tracking information for order ${orderId}`
-    
-    const body = `Hey ${firstName},
-
-Thank you for your business! Your order ${orderId} has been shipped.
-
-${carrier} Tracking Number: ${trackingNumber}
-${trackingUrl ? `Track your shipment: ${trackingUrl}` : ''}
-
-Thank you for your business,
-The Cabinets For Contractors Team`
-    
-    const mailtoUrl = `mailto:${customerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-    window.open(mailtoUrl, '_blank')
   }
   
   // Get shipping cost to display
@@ -232,7 +235,8 @@ The Cabinets For Contractors Team`
           marginTop: '8px', 
           display: 'flex', 
           gap: '8px', 
-          alignItems: 'center' 
+          alignItems: 'center',
+          flexWrap: 'wrap'
         }}>
           <input 
             type="text"
@@ -240,18 +244,43 @@ The Cabinets For Contractors Team`
             onChange={(e) => setTrackingNumber(e.target.value)}
             placeholder="Enter tracking/PRO number..."
             autoFocus
-            style={{ flex: 1, padding: '6px' }}
+            style={{ flex: 1, padding: '6px', minWidth: '200px' }}
           />
-          <button 
-            className="btn btn-sm btn-success" 
-            onClick={handleSaveTracking}
-            style={{ backgroundColor: '#4caf50', color: '#fff' }}
-          >
-            Save & Email
-          </button>
+          
+          {/* Save & Email button - sends via B2BWave */}
           <button 
             className="btn btn-sm" 
-            onClick={() => setShowTrackingInput(false)}
+            onClick={handleSaveAndSendTracking}
+            disabled={updating || sendStatus === 'sending'}
+            style={{ 
+              backgroundColor: sendStatus === 'success' ? '#4caf50' : '#1976d2', 
+              color: '#fff',
+              minWidth: '120px'
+            }}
+          >
+            {sendStatus === 'sending' ? '📧 Sending...' : 
+             sendStatus === 'success' ? '✓ Sent!' : 
+             '📧 Save & Email'}
+          </button>
+          
+          {/* Save Only button */}
+          <button 
+            className="btn btn-sm" 
+            onClick={handleSaveOnly}
+            disabled={updating}
+            style={{ backgroundColor: '#757575', color: '#fff' }}
+            title="Save tracking without emailing customer"
+          >
+            Save Only
+          </button>
+          
+          {/* Cancel */}
+          <button 
+            className="btn btn-sm" 
+            onClick={() => {
+              setShowTrackingInput(false)
+              setSendStatus(null)
+            }}
           >
             ✕
           </button>
