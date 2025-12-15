@@ -1,65 +1,126 @@
 /**
  * StatusBar.jsx
- * Top status filter buttons with counts
- * v5.8.4 - Show Completed as button not checkbox
+ * Top status filter buttons with counts and color coding
+ * v5.9.1 - Uses helper files, adds Sync AI button
  */
 
-const STATUS_MAP = {
-  'needs_payment_link': { label: '1-Need Invoice', class: 'needs-invoice' },
-  'awaiting_payment': { label: '2-Awaiting Pay', class: 'awaiting-pay' },
-  'needs_warehouse_order': { label: '3-Need to Order', class: 'needs-order' },
-  'awaiting_warehouse': { label: '4-At Warehouse', class: 'at-warehouse' },
-  'needs_bol': { label: '5-Need BOL', class: 'needs-bol' },
-  'awaiting_shipment': { label: '6-Ready Ship', class: 'ready-ship' },
-  'complete': { label: 'Complete', class: 'complete' }
-}
+import { useState } from 'react'
+import { 
+  STATUS_MAP, 
+  ACTIVE_STATUSES, 
+  getStatusButtonStyle 
+} from '../helpers/statusHelpers'
+import { syncAllAISummaries } from '../helpers/syncHelpers'
+import { API_URL } from '../config'
 
-const StatusBar = ({ orders, activeFilter, onFilterChange, showArchived, onToggleArchived }) => {
+const StatusBar = ({ orders, activeFilter, onFilterChange, showArchived, onToggleArchived, onRefresh }) => {
+  const [syncing, setSyncing] = useState(false)
+  const [syncMessage, setSyncMessage] = useState('')
+
+  if (!Array.isArray(orders)) return null
+
   // Count orders by status
   const counts = {}
   Object.keys(STATUS_MAP).forEach(key => {
     counts[key] = orders.filter(o => o.current_status === key).length
   })
-  
-  // Active orders (not complete)
-  const activeCount = orders.filter(o => o.current_status !== 'complete').length
-  const completeCount = counts['complete'] || 0
-  
+
+  // Active orders (not complete or canceled)
+  const activeCount = orders.filter(o => ACTIVE_STATUSES.includes(o.current_status)).length
+  const archivedCount = (counts['complete'] || 0) + (counts['canceled'] || 0)
+
+  // Handle Sync AI button
+  const handleSyncAI = async () => {
+    setSyncing(true)
+    setSyncMessage('Syncing...')
+    
+    const result = await syncAllAISummaries(API_URL, false)
+    
+    if (result.success) {
+      setSyncMessage(result.message)
+      if (onRefresh) onRefresh()
+    } else {
+      setSyncMessage('Sync failed: ' + result.error)
+    }
+    
+    setSyncing(false)
+    
+    // Clear message after 5 seconds
+    setTimeout(() => setSyncMessage(''), 5000)
+  }
+
   return (
     <div className="status-bar">
       <div className="status-filters">
-        <button 
+        {/* All Active button */}
+        <button
           className={`filter-btn ${!activeFilter && !showArchived ? 'active' : ''}`}
           onClick={() => {
             onFilterChange(null)
             onToggleArchived(false)
           }}
+          style={!activeFilter && !showArchived ? { 
+            backgroundColor: '#1976d2', 
+            color: '#fff',
+            borderColor: '#1976d2'
+          } : {}}
         >
           All Active ({activeCount})
         </button>
-        
-        {Object.entries(STATUS_MAP).filter(([key]) => key !== 'complete').map(([key, value]) => (
-          <button 
-            key={key}
-            className={`filter-btn status-${value.class} ${activeFilter === key ? 'active' : ''}`}
-            onClick={() => {
-              onFilterChange(key)
-              onToggleArchived(false)
-            }}
-          >
-            {value.label} ({counts[key] || 0})
-          </button>
-        ))}
-        
-        <button 
+
+        {/* Status buttons - color coded */}
+        {ACTIVE_STATUSES.map(key => {
+          const status = STATUS_MAP[key]
+          const isActive = activeFilter === key
+          
+          return (
+            <button
+              key={key}
+              className={`filter-btn ${isActive ? 'active' : ''}`}
+              onClick={() => {
+                onFilterChange(key)
+                onToggleArchived(false)
+              }}
+              style={getStatusButtonStyle(key, isActive)}
+            >
+              {status.label} ({counts[key] || 0})
+            </button>
+          )
+        })}
+
+        {/* Archived button */}
+        <button
           className={`filter-btn archived-btn ${showArchived ? 'active' : ''}`}
           onClick={() => {
             onToggleArchived(!showArchived)
             onFilterChange(null)
           }}
+          style={showArchived ? {
+            backgroundColor: '#9e9e9e',
+            color: '#fff',
+            borderColor: '#9e9e9e'
+          } : {
+            borderColor: '#9e9e9e',
+            color: '#9e9e9e'
+          }}
         >
-          Archived ({completeCount})
+          Archived ({archivedCount})
         </button>
+      </div>
+
+      {/* Sync AI button */}
+      <div className="sync-actions">
+        <button
+          className="btn btn-sync-ai"
+          onClick={handleSyncAI}
+          disabled={syncing}
+          title="Regenerate AI summaries for all active orders"
+        >
+          {syncing ? '⏳ Syncing...' : '🤖 Sync AI'}
+        </button>
+        {syncMessage && (
+          <span className="sync-message">{syncMessage}</span>
+        )}
       </div>
     </div>
   )

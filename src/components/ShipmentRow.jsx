@@ -1,38 +1,20 @@
 /**
  * ShipmentRow.jsx
  * Display a single warehouse shipment with status, method, and actions
- * v5.9.3 - Based on working v5.8.4, correct backend status values, Li_Delivery, cost display
+ * v5.9.1 - Uses helper files, correct backend values, track button fix
  */
 
 import { useState } from 'react'
+import { 
+  SHIPMENT_STATUS_OPTIONS, 
+  SHIP_METHOD_OPTIONS 
+} from '../helpers/statusHelpers'
+import { 
+  updateShipmentStatus, 
+  updateShipmentMethod, 
+  saveTrackingNumber 
+} from '../helpers/syncHelpers'
 import { API_URL } from '../config'
-
-// Backend expects these exact status values
-const STATUS_OPTIONS = [
-  { value: 'needs_order', label: 'Pending' },
-  { value: 'at_warehouse', label: 'At Warehouse' },
-  { value: 'needs_bol', label: 'Needs BOL' },
-  { value: 'ready_ship', label: 'Ready Ship' },
-  { value: 'shipped', label: 'Shipped' },
-  { value: 'delivered', label: 'Delivered' }
-]
-
-const METHOD_OPTIONS = [
-  { value: '', label: 'Select...' },
-  { value: 'LTL', label: 'LTL' },
-  { value: 'Pirateship', label: 'Pirateship' },
-  { value: 'Pickup', label: 'Pickup' },
-  { value: 'BoxTruck', label: 'BoxTruck' },
-  { value: 'LiDelivery', label: 'Li_Delivery' }
-]
-
-// Get shipping cost for display
-const getShippingCost = (shipment) => {
-  return Number(shipment.rl_customer_price) || Number(shipment.li_customer_price) || 
-         Number(shipment.customer_price) || Number(shipment.ps_quote_price) ||
-         Number(shipment.rl_quote_price) || Number(shipment.li_quote_price) || 
-         Number(shipment.quote_price) || 0
-}
 
 const ShipmentRow = ({ 
   shipment, 
@@ -44,34 +26,34 @@ const ShipmentRow = ({
   const [showTrackingInput, setShowTrackingInput] = useState(false)
   const [trackingNumber, setTrackingNumber] = useState(shipment.tracking_number || '')
   
-  const handleStatusChange = async (newStatus) => {
+  const handleStatusChange = async (e) => {
+    const newStatus = e.target.value
     setUpdating(true)
-    try {
-      await fetch(`${API_URL}/shipments/${shipment.shipment_id}?status=${newStatus}`, {
-        method: 'PATCH'
-      })
-      if (onUpdate) onUpdate()
-    } catch (err) {
-      console.error('Failed to update status:', err)
+    
+    const result = await updateShipmentStatus(API_URL, shipment.shipment_id, newStatus)
+    
+    if (result.success && onUpdate) {
+      onUpdate()
     }
+    
     setUpdating(false)
   }
   
-  const handleMethodChange = async (newMethod) => {
+  const handleMethodChange = async (e) => {
+    const newMethod = e.target.value
     setUpdating(true)
-    try {
-      await fetch(`${API_URL}/shipments/${shipment.shipment_id}?ship_method=${newMethod}`, {
-        method: 'PATCH'
-      })
+    
+    const result = await updateShipmentMethod(API_URL, shipment.shipment_id, newMethod)
+    
+    if (result.success) {
       if (onUpdate) onUpdate()
       
       // Open shipping manager for methods that need helpers
       if (newMethod && newMethod !== 'Pickup') {
         onOpenShippingManager(shipment)
       }
-    } catch (err) {
-      console.error('Failed to update method:', err)
     }
+    
     setUpdating(false)
   }
   
@@ -79,24 +61,17 @@ const ShipmentRow = ({
     if (!trackingNumber.trim()) return
     
     setUpdating(true)
-    try {
-      await fetch(`${API_URL}/shipments/${shipment.shipment_id}?tracking_number=${encodeURIComponent(trackingNumber)}`, {
-        method: 'PATCH'
-      })
-      
-      // Update status to shipped
-      await fetch(`${API_URL}/shipments/${shipment.shipment_id}?status=shipped`, {
-        method: 'PATCH'
-      })
-      
+    
+    const result = await saveTrackingNumber(API_URL, shipment.shipment_id, trackingNumber)
+    
+    if (result.success) {
       if (onUpdate) onUpdate()
       setShowTrackingInput(false)
       
       // Open mailto with tracking info
       sendTrackingEmail()
-    } catch (err) {
-      console.error('Failed to save tracking:', err)
     }
+    
     setUpdating(false)
   }
   
@@ -140,61 +115,88 @@ The Cabinets For Contractors Team`
     window.open(mailtoUrl, '_blank')
   }
   
+  // Get shipping cost to display
+  const getShippingCost = () => {
+    const cost = 
+      Number(shipment.rl_customer_price) ||
+      Number(shipment.li_customer_price) ||
+      Number(shipment.ps_quote_price) ||
+      Number(shipment.customer_price) ||
+      Number(shipment.rl_quote_price) ||
+      Number(shipment.li_quote_price) ||
+      Number(shipment.quote_price) ||
+      0
+    
+    return cost > 0 ? `$${cost.toFixed(2)}` : ''
+  }
+  
+  const shippingCost = getShippingCost()
+  
   // Check if shipment has any quote/price info
   const hasQuoteInfo = shipment.rl_quote_number || shipment.rl_quote_price || 
-                       shipment.li_quote_price || shipment.quote_price || shipment.ps_quote_price
-  
-  const shippingCost = getShippingCost(shipment)
+                       shipment.li_quote_price || shipment.quote_price ||
+                       shipment.rl_customer_price || shipment.li_customer_price
+
+  // Should show track button? YES for all methods except Pickup and LiDelivery
+  // FIX: Show track button even if quote info exists
+  const showTrackButton = shipment.ship_method !== 'Pickup' && shipment.ship_method !== 'LiDelivery'
   
   return (
     <div className={`shipment-row ${updating ? 'updating' : ''}`}>
       <div className="shipment-warehouse">
         <strong>{shipment.warehouse}</strong>
-        {shippingCost > 0 && (
-          <span style={{ marginLeft: '8px', color: '#2e7d32', fontWeight: '600', fontSize: '13px' }}>
-            — ${shippingCost.toFixed(2)}
+        {/* Show cost next to warehouse name */}
+        {shippingCost && (
+          <span className="shipping-cost" style={{ color: '#2e7d32', marginLeft: '8px' }}>
+            — {shippingCost}
           </span>
         )}
-        {shipment.weight && <span className="weight">{shipment.weight} lbs</span>}
+        {shipment.weight && <span className="weight"> ({shipment.weight} lbs)</span>}
       </div>
       
       <div className="shipment-controls">
+        {/* Status dropdown - uses backend values */}
         <select 
           value={shipment.status || 'needs_order'}
-          onChange={(e) => handleStatusChange(e.target.value)}
+          onChange={handleStatusChange}
           className="status-select"
+          style={{ minWidth: '110px' }}
         >
-          {STATUS_OPTIONS.map(opt => (
+          {SHIPMENT_STATUS_OPTIONS.map(opt => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
         
+        {/* Method dropdown */}
         <select 
           value={shipment.ship_method || ''}
-          onChange={(e) => handleMethodChange(e.target.value)}
+          onChange={handleMethodChange}
           className="method-select"
+          style={{ minWidth: '100px' }}
         >
-          {METHOD_OPTIONS.map(opt => (
+          {SHIP_METHOD_OPTIONS.map(opt => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
         
-        {/* Shipping button - show for all shipments */}
+        {/* Shipping button - always show */}
         <button 
           className={`btn btn-sm ${hasQuoteInfo ? 'btn-quoted' : 'btn-quote'}`}
           onClick={() => onOpenShippingManager(shipment)}
+          style={hasQuoteInfo ? { backgroundColor: '#4caf50', color: '#fff' } : {}}
         >
           Shipping
         </button>
         
-        {/* Tracking input/display */}
-        {shipment.ship_method !== 'Pickup' && shipment.ship_method !== 'LiDelivery' && (
+        {/* Tracking input/display - FIX: Show regardless of quote info */}
+        {showTrackButton && (
           <>
             {shipment.tracking_number ? (
               <button 
                 className="btn btn-sm btn-tracking"
                 onClick={() => setShowTrackingInput(true)}
                 title={shipment.tracking_number}
+                style={{ backgroundColor: '#2196f3', color: '#fff' }}
               >
                 📦 {shipment.tracking_number.slice(-6)}
               </button>
@@ -212,18 +214,31 @@ The Cabinets For Contractors Team`
       
       {/* Tracking input row */}
       {showTrackingInput && (
-        <div className="tracking-input-row">
+        <div className="tracking-input-row" style={{ 
+          marginTop: '8px', 
+          display: 'flex', 
+          gap: '8px', 
+          alignItems: 'center' 
+        }}>
           <input 
             type="text"
             value={trackingNumber}
             onChange={(e) => setTrackingNumber(e.target.value)}
             placeholder="Enter tracking/PRO number..."
             autoFocus
+            style={{ flex: 1, padding: '6px' }}
           />
-          <button className="btn btn-sm btn-success" onClick={handleSaveTracking}>
+          <button 
+            className="btn btn-sm btn-success" 
+            onClick={handleSaveTracking}
+            style={{ backgroundColor: '#4caf50', color: '#fff' }}
+          >
             Save & Email
           </button>
-          <button className="btn btn-sm" onClick={() => setShowTrackingInput(false)}>
+          <button 
+            className="btn btn-sm" 
+            onClick={() => setShowTrackingInput(false)}
+          >
             ✕
           </button>
         </div>
