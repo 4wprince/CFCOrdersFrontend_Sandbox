@@ -1,7 +1,7 @@
 /**
  * OrderCard.jsx
  * Display a single order with status, customer info, shipments
- * v5.10.0 - Added colored warehouse pills based on shipment status
+ * v5.10.1 - Colored warehouse pills + editable notes
  */
 
 import { useState } from 'react'
@@ -54,6 +54,10 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
   if (!order) return null
   
   const [isUpdating, setIsUpdating] = useState(false)
+  const [isEditingNotes, setIsEditingNotes] = useState(false)
+  const [notes, setNotes] = useState(order?.notes || '')
+  const [isSavingNotes, setIsSavingNotes] = useState(false)
+  
   const status = STATUS_MAP[order.current_status] || STATUS_MAP['needs_payment_link']
 
   // Customer info
@@ -141,6 +145,25 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
   const formatAISummary = (summary) => {
     if (!summary) return ''
     return summary.replace(/\n{2,}/g, '\n').trim()
+  }
+
+  // Save notes
+  const handleSaveNotes = async () => {
+    setIsSavingNotes(true)
+    try {
+      const res = await fetch(`${API_URL}/orders/${order.order_id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes })
+      })
+      if (!res.ok) throw new Error('Failed to save notes')
+      setIsEditingNotes(false)
+      if (onUpdate) onUpdate()
+    } catch (err) {
+      alert('Failed to save notes')
+    } finally {
+      setIsSavingNotes(false)
+    }
   }
 
   return (
@@ -269,19 +292,106 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
         </div>
       )}
 
-      {/* Notes - styled box */}
-      {order.notes && (
-        <div style={{ 
-          backgroundColor: '#e3f2fd', 
-          padding: '8px 12px', 
-          borderRadius: '4px',
-          marginTop: '8px',
-          borderLeft: '3px solid #2196f3'
-        }}>
-          <strong style={{ color: '#1565c0' }}>Notes: </strong>
-          <span>{order.notes}</span>
-        </div>
-      )}
+      {/* Internal Notes - Purple, Editable */}
+      <div style={{ 
+        backgroundColor: '#f3e5f5', 
+        padding: '8px 12px', 
+        borderRadius: '4px',
+        marginTop: '8px',
+        borderLeft: '3px solid #9c27b0'
+      }}>
+        {isEditingNotes ? (
+          <div onClick={(e) => e.stopPropagation()}>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add internal notes..."
+              rows={3}
+              style={{ 
+                width: '100%', 
+                marginBottom: '8px', 
+                padding: '6px', 
+                borderRadius: '4px', 
+                border: '1px solid #9c27b0', 
+                fontSize: '13px', 
+                fontFamily: 'inherit', 
+                resize: 'vertical', 
+                boxSizing: 'border-box' 
+              }}
+            />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                onClick={handleSaveNotes} 
+                disabled={isSavingNotes} 
+                style={{ 
+                  backgroundColor: '#4caf50', 
+                  color: 'white', 
+                  border: 'none', 
+                  padding: '4px 12px', 
+                  borderRadius: '4px', 
+                  cursor: 'pointer', 
+                  fontSize: '12px' 
+                }}
+              >
+                {isSavingNotes ? 'Saving...' : 'Save'}
+              </button>
+              <button 
+                onClick={() => { setIsEditingNotes(false); setNotes(order.notes || ''); }} 
+                disabled={isSavingNotes} 
+                style={{ 
+                  backgroundColor: '#9e9e9e', 
+                  color: 'white', 
+                  border: 'none', 
+                  padding: '4px 12px', 
+                  borderRadius: '4px', 
+                  cursor: 'pointer', 
+                  fontSize: '12px' 
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div onClick={(e) => e.stopPropagation()}>
+            {order.notes ? (
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                <div><strong style={{ color: '#7b1fa2' }}>Notes:</strong> {order.notes}</div>
+                <button 
+                  onClick={() => setIsEditingNotes(true)} 
+                  style={{ 
+                    backgroundColor: '#9c27b0', 
+                    color: 'white', 
+                    border: 'none', 
+                    padding: '2px 8px', 
+                    borderRadius: '4px', 
+                    cursor: 'pointer', 
+                    fontSize: '11px', 
+                    flexShrink: 0 
+                  }}
+                >
+                  Edit
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={() => setIsEditingNotes(true)} 
+                style={{ 
+                  backgroundColor: '#9c27b0', 
+                  color: 'white', 
+                  border: 'none', 
+                  padding: '4px 12px', 
+                  borderRadius: '4px', 
+                  cursor: 'pointer', 
+                  fontSize: '12px' 
+                }}
+              >
+                + Add Note
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* AI Summary */}
       {order.ai_summary && (
