@@ -1,7 +1,7 @@
 /**
  * OrderCard.jsx
  * Display a single order with status, customer info, shipments
- * v5.9.2 - Fixed: address format, removed Details button, no Canceled option
+ * v5.10.0 - Added: colored warehouse status pills
  */
 
 import { useState } from 'react'
@@ -16,6 +16,25 @@ const STATUS_MAP = {
   'needs_bol': { label: '5-Need BOL', color: '#00bcd4' },
   'awaiting_shipment': { label: '6-Ready Ship', color: '#4caf50' },
   'complete': { label: 'Complete', color: '#9e9e9e' }
+}
+
+// Shipment status colors for warehouse pills
+const SHIPMENT_STATUS_COLORS = {
+  'needs_order': '#f44336',      // Red
+  'at_warehouse': '#9c27b0',     // Purple
+  'needs_bol': '#00bcd4',        // Cyan
+  'ready_ship': '#4caf50',       // Green
+  'shipped': '#607d8b',          // Blue-gray
+  'delivered': '#9e9e9e'         // Gray
+}
+
+const SHIPMENT_STATUS_LABELS = {
+  'needs_order': 'Need to Order',
+  'at_warehouse': 'At Warehouse',
+  'needs_bol': 'Need BOL',
+  'ready_ship': 'Ready to Ship',
+  'shipped': 'Shipped',
+  'delivered': 'Delivered'
 }
 
 const STATUS_OPTIONS = [
@@ -70,6 +89,35 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
     order.warehouse_3,
     order.warehouse_4
   ].filter(Boolean)
+
+  // Build warehouse status map from shipments
+  const warehouseStatusMap = {}
+  if (order.shipments && order.shipments.length > 0) {
+    order.shipments.forEach(shipment => {
+      if (shipment.warehouse) {
+        warehouseStatusMap[shipment.warehouse] = shipment.status || 'needs_order'
+      }
+    })
+  }
+
+  // Helper to get status color for a warehouse
+  const getWarehouseStatusColor = (warehouseName) => {
+    const shipmentStatus = warehouseStatusMap[warehouseName]
+    if (shipmentStatus && SHIPMENT_STATUS_COLORS[shipmentStatus]) {
+      return SHIPMENT_STATUS_COLORS[shipmentStatus]
+    }
+    // Default to needs_order (red) if no shipment status found
+    return SHIPMENT_STATUS_COLORS['needs_order']
+  }
+
+  // Helper to get status label for tooltip
+  const getWarehouseStatusLabel = (warehouseName) => {
+    const shipmentStatus = warehouseStatusMap[warehouseName]
+    if (shipmentStatus && SHIPMENT_STATUS_LABELS[shipmentStatus]) {
+      return SHIPMENT_STATUS_LABELS[shipmentStatus]
+    }
+    return 'Need to Order'
+  }
 
   // Format order total
   const orderTotal = parseFloat(order.order_total || 0)
@@ -199,11 +247,33 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
           )}
         </div>
 
+        {/* Warehouse pills with status colors */}
         {warehouses.length > 0 && (
           <div className="warehouses">
-            {warehouses.map((wh, i) => (
-              <span key={i} className="warehouse-tag">{wh}</span>
-            ))}
+            {warehouses.map((wh, i) => {
+              const statusColor = getWarehouseStatusColor(wh)
+              const statusLabel = getWarehouseStatusLabel(wh)
+              return (
+                <span 
+                  key={i} 
+                  className="warehouse-tag"
+                  title={statusLabel}
+                  style={{
+                    backgroundColor: statusColor + '20',
+                    color: statusColor,
+                    border: `1px solid ${statusColor}`,
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    marginRight: '4px',
+                    display: 'inline-block'
+                  }}
+                >
+                  {wh}
+                </span>
+              )
+            })}
           </div>
         )}
       </div>
