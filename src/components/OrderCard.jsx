@@ -1,7 +1,7 @@
 /**
  * OrderCard.jsx
  * Display a single order with status, customer info, shipments
- * v5.10.0 - Added: colored warehouse status pills
+ * v5.10.0 - Added colored warehouse pills based on shipment status
  */
 
 import { useState } from 'react'
@@ -18,25 +18,6 @@ const STATUS_MAP = {
   'complete': { label: 'Complete', color: '#9e9e9e' }
 }
 
-// Shipment status colors for warehouse pills
-const SHIPMENT_STATUS_COLORS = {
-  'needs_order': '#f44336',      // Red
-  'at_warehouse': '#9c27b0',     // Purple
-  'needs_bol': '#00bcd4',        // Cyan
-  'ready_ship': '#4caf50',       // Green
-  'shipped': '#607d8b',          // Blue-gray
-  'delivered': '#9e9e9e'         // Gray
-}
-
-const SHIPMENT_STATUS_LABELS = {
-  'needs_order': 'Need to Order',
-  'at_warehouse': 'At Warehouse',
-  'needs_bol': 'Need BOL',
-  'ready_ship': 'Ready to Ship',
-  'shipped': 'Shipped',
-  'delivered': 'Delivered'
-}
-
 const STATUS_OPTIONS = [
   { value: 'needs_payment_link', label: '1-Need Invoice' },
   { value: 'awaiting_payment', label: '2-Awaiting Pay' },
@@ -46,6 +27,16 @@ const STATUS_OPTIONS = [
   { value: 'awaiting_shipment', label: '6-Ready Ship' },
   { value: 'complete', label: 'Complete' }
 ]
+
+// Shipment-level status colors for warehouse pills
+const SHIPMENT_STATUS_COLORS = {
+  'needs_order': { color: '#f44336', label: 'Need to Order' },      // Red
+  'at_warehouse': { color: '#9c27b0', label: 'At Warehouse' },      // Purple
+  'needs_bol': { color: '#00bcd4', label: 'Need BOL' },             // Cyan
+  'ready_ship': { color: '#4caf50', label: 'Ready to Ship' },       // Green
+  'shipped': { color: '#607d8b', label: 'Shipped' },                // Blue-gray
+  'delivered': { color: '#9e9e9e', label: 'Delivered' }             // Gray
+}
 
 const getAgeLabel = (orderDate) => {
   if (!orderDate) return ''
@@ -89,35 +80,6 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
     order.warehouse_3,
     order.warehouse_4
   ].filter(Boolean)
-
-  // Build warehouse status map from shipments
-  const warehouseStatusMap = {}
-  if (order.shipments && order.shipments.length > 0) {
-    order.shipments.forEach(shipment => {
-      if (shipment.warehouse) {
-        warehouseStatusMap[shipment.warehouse] = shipment.status || 'needs_order'
-      }
-    })
-  }
-
-  // Helper to get status color for a warehouse
-  const getWarehouseStatusColor = (warehouseName) => {
-    const shipmentStatus = warehouseStatusMap[warehouseName]
-    if (shipmentStatus && SHIPMENT_STATUS_COLORS[shipmentStatus]) {
-      return SHIPMENT_STATUS_COLORS[shipmentStatus]
-    }
-    // Default to needs_order (red) if no shipment status found
-    return SHIPMENT_STATUS_COLORS['needs_order']
-  }
-
-  // Helper to get status label for tooltip
-  const getWarehouseStatusLabel = (warehouseName) => {
-    const shipmentStatus = warehouseStatusMap[warehouseName]
-    if (shipmentStatus && SHIPMENT_STATUS_LABELS[shipmentStatus]) {
-      return SHIPMENT_STATUS_LABELS[shipmentStatus]
-    }
-    return 'Need to Order'
-  }
 
   // Format order total
   const orderTotal = parseFloat(order.order_total || 0)
@@ -247,27 +209,27 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
           )}
         </div>
 
-        {/* Warehouse pills with status colors */}
         {warehouses.length > 0 && (
           <div className="warehouses">
             {warehouses.map((wh, i) => {
-              const statusColor = getWarehouseStatusColor(wh)
-              const statusLabel = getWarehouseStatusLabel(wh)
+              // Find the shipment for this warehouse to get its status
+              const shipment = order.shipments?.find(s => s.warehouse === wh)
+              const shipmentStatus = shipment?.status || 'needs_order'
+              const statusInfo = SHIPMENT_STATUS_COLORS[shipmentStatus] || SHIPMENT_STATUS_COLORS['needs_order']
+              
               return (
                 <span 
                   key={i} 
                   className="warehouse-tag"
-                  title={statusLabel}
+                  title={statusInfo.label}
                   style={{
-                    backgroundColor: statusColor + '20',
-                    color: statusColor,
-                    border: `1px solid ${statusColor}`,
+                    backgroundColor: statusInfo.color + '20',
+                    color: statusInfo.color,
+                    border: `1px solid ${statusInfo.color}`,
                     padding: '2px 8px',
                     borderRadius: '12px',
                     fontSize: '12px',
-                    fontWeight: '500',
-                    marginRight: '4px',
-                    display: 'inline-block'
+                    fontWeight: '500'
                   }}
                 >
                   {wh}
