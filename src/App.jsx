@@ -366,12 +366,9 @@ function App() {
                 marginBottom: '12px',
                 backgroundColor: '#fff'
               }}>
-                {/* Row 1: Order Details label | Company Name */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Order Details</span>
-                  <span style={{ fontSize: '12px', color: '#333' }}>
-                    {selectedOrder.company_name || selectedOrder.customer_name}
-                  </span>
+                {/* Row 1: Order Details - Company Name */}
+                <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#666', marginBottom: '4px' }}>
+                  Order Details - <span style={{ color: '#333', fontWeight: 'normal' }}>{selectedOrder.company_name || selectedOrder.customer_name}</span>
                 </div>
                 
                 {/* Row 2: Address */}
@@ -408,7 +405,7 @@ function App() {
                       fontWeight: '500'
                     }}
                   >
-                    {summaryLoading ? 'Generating...' : comprehensiveSummary ? 'Regenerate AI Summary' : 'Generate AI Summary'}
+                    {summaryLoading ? 'Generating...' : 'Generate AI Summary'}
                   </button>
                 </div>
               </div>
