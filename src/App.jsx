@@ -1,33 +1,66 @@
 /**
  * App.jsx - Main Application
- * v5.9.0 - Fixed status updates, removed broken modal checkboxes
+ * v5.9.8 - Comprehensive AI Summary in Order Popout
+ * 
+ * Orchestrates:
+ * - Login/auth
+ * - Order loading
+ * - Component rendering
+ * - Modal management
+ * - Comprehensive AI Summary
  */
 
 import { useState, useEffect } from 'react'
 import StatusBar from './components/StatusBar'
 import OrderCard from './components/OrderCard'
 import ShippingManager from './components/ShippingManager'
+import OrderComments from './components/OrderComments'
 
 import { API_URL, APP_PASSWORD } from './config'
+
+// Status mapping for display
+const STATUS_MAP = {
+  'needs_payment_link': { label: '1-Need Invoice', class: 'needs-invoice' },
+  'awaiting_payment': { label: '2-Awaiting Pay', class: 'awaiting-pay' },
+  'needs_warehouse_order': { label: '3-Need to Order', class: 'needs-order' },
+  'awaiting_warehouse': { label: '4-At Warehouse', class: 'at-warehouse' },
+  'needs_bol': { label: '5-Need BOL', class: 'needs-bol' },
+  'awaiting_shipment': { label: '6-Ready Ship', class: 'ready-ship' },
+  'complete': { label: 'Complete', class: 'complete' }
+}
+
+const STATUS_OPTIONS = [
+  { value: 'needs_payment_link', label: '1-Need Invoice' },
+  { value: 'awaiting_payment', label: '2-Awaiting Pay' },
+  { value: 'needs_warehouse_order', label: '3-Need to Order' },
+  { value: 'awaiting_warehouse', label: '4-At Warehouse' },
+  { value: 'needs_bol', label: '5-Need BOL' },
+  { value: 'awaiting_shipment', label: '6-Ready Ship' },
+  { value: 'complete', label: 'Complete' }
+]
 
 function App() {
   // Auth state
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [password, setPassword] = useState('')
   const [loginError, setLoginError] = useState('')
-
+  
   // Data state
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
-
+  
   // Filter state
   const [statusFilter, setStatusFilter] = useState(null)
   const [showArchived, setShowArchived] = useState(false)
-
+  
   // Modal state
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [shippingModal, setShippingModal] = useState(null)
-
+  
+  // Comprehensive AI Summary state
+  const [comprehensiveSummary, setComprehensiveSummary] = useState('')
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  
   // Check saved login
   useEffect(() => {
     const saved = localStorage.getItem('cfc_logged_in')
@@ -35,16 +68,16 @@ function App() {
       setIsLoggedIn(true)
     }
   }, [])
-
+  
   // Load data when logged in
   useEffect(() => {
     if (isLoggedIn) {
       loadOrders()
     }
   }, [isLoggedIn])
-
+  
   // === AUTH ===
-
+  
   const handleLogin = (e) => {
     e.preventDefault()
     if (password === APP_PASSWORD) {
@@ -55,14 +88,14 @@ function App() {
       setLoginError('Incorrect password')
     }
   }
-
+  
   const handleLogout = () => {
     setIsLoggedIn(false)
     localStorage.removeItem('cfc_logged_in')
   }
-
+  
   // === DATA LOADING ===
-
+  
   const loadOrders = async () => {
     setLoading(true)
     try {
@@ -76,33 +109,53 @@ function App() {
     }
     setLoading(false)
   }
-
+  
   // === FILTERING ===
-
+  
   const getFilteredOrders = () => {
-    let filtered = orders || []
-
+    let filtered = orders
+    
+    // Filter by status
     if (statusFilter) {
-      filtered = filtered.filter(o => o && o.current_status === statusFilter)
+      filtered = filtered.filter(o => o.current_status === statusFilter)
     } else if (showArchived) {
-      filtered = filtered.filter(o => o && o.current_status === 'complete')
+      // Show ONLY complete/archived orders
+      filtered = filtered.filter(o => o.current_status === 'complete')
     } else {
-      filtered = filtered.filter(o => o && o.current_status !== 'complete')
+      // Hide complete orders (show active only)
+      filtered = filtered.filter(o => o.current_status !== 'complete')
     }
-
+    
     return filtered
   }
-
+  
+  // === STATUS UPDATES ===
+  
+  const updateOrderStatus = async (orderId, field, value) => {
+    try {
+      await fetch(`${API_URL}/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value })
+      })
+      loadOrders()
+    } catch (err) {
+      console.error('Failed to update order:', err)
+    }
+  }
+  
   // === MODALS ===
-
+  
   const openOrderDetail = (order) => {
     setSelectedOrder(order)
+    setComprehensiveSummary('') // Reset summary when opening new order
   }
-
+  
   const closeOrderDetail = () => {
     setSelectedOrder(null)
+    setComprehensiveSummary('')
   }
-
+  
   const openShippingManager = (shipment, order) => {
     setShippingModal({
       shipment,
@@ -118,35 +171,84 @@ function App() {
       }
     })
   }
-
+  
   const closeShippingManager = () => {
     setShippingModal(null)
     loadOrders()
   }
-
+  
+  // === COMPREHENSIVE AI SUMMARY ===
+  
+  const generateComprehensiveSummary = async () => {
+    if (!selectedOrder) return
+    
+    setSummaryLoading(true)
+    setComprehensiveSummary('')
+    
+    try {
+      const res = await fetch(`${API_URL}/orders/${selectedOrder.order_id}/comprehensive-summary`, {
+        method: 'POST'
+      })
+      const data = await res.json()
+      
+      if (data.comprehensive_summary) {
+        setComprehensiveSummary(data.comprehensive_summary)
+      } else if (data.detail) {
+        setComprehensiveSummary(`Error: ${data.detail}`)
+      }
+    } catch (err) {
+      console.error('Failed to generate summary:', err)
+      setComprehensiveSummary('Failed to generate summary. Please try again.')
+    }
+    
+    setSummaryLoading(false)
+  }
+  
+  // === HELPER: Format Address ===
+  const formatAddress = (order) => {
+    const parts = []
+    if (order.street) parts.push(order.street)
+    
+    const cityStateZip = []
+    if (order.city) cityStateZip.push(order.city)
+    if (order.state) {
+      if (order.zip_code) {
+        cityStateZip.push(`${order.state} ${order.zip_code}`)
+      } else {
+        cityStateZip.push(order.state)
+      }
+    } else if (order.zip_code) {
+      cityStateZip.push(order.zip_code)
+    }
+    
+    if (cityStateZip.length > 0) {
+      parts.push(cityStateZip.join(', '))
+    }
+    
+    return parts.join(', ')
+  }
+  
   // === RENDER: LOGIN ===
-
+  
   if (!isLoggedIn) {
     return (
       <div className="login-container">
         <form onSubmit={handleLogin} className="login-form">
-          <h1>CFC Orders</h1>
+          <h2>CFC Orders</h2>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Enter password"
-            autoFocus
           />
           <button type="submit">Login</button>
-          {loginError && <div className="error">{loginError}</div>}
+          {loginError && <p className="error">{loginError}</p>}
         </form>
       </div>
     )
   }
 
-  // === RENDER: LOADING STATE ===
-
+  // Gate main app render until orders are ready
   if (loading) {
     return <div className="loading">Loading orders...</div>
   }
@@ -157,8 +259,7 @@ function App() {
 
   // === RENDER: MAIN APP ===
 
-  const result = getFilteredOrders()
-  const filteredOrders = Array.isArray(result) ? result : []
+  const filteredOrders = getFilteredOrders()
 
   return (
     <div className="app">
@@ -172,7 +273,7 @@ function App() {
           <button onClick={handleLogout}>Logout</button>
         </div>
       </header>
-
+      
       {/* Status Filter Bar */}
       <StatusBar 
         orders={orders}
@@ -181,10 +282,14 @@ function App() {
         showArchived={showArchived}
         onToggleArchived={setShowArchived}
       />
-
+      
       {/* Orders Grid */}
       <main className="orders-grid">
-        {filteredOrders.length === 0 ? (
+        {loading ? (
+          <div className="loading">Loading orders...</div>
+        ) : !Array.isArray(filteredOrders) ? (
+          <div className="loading">Loading orders...</div>
+        ) : filteredOrders.length === 0 ? (
           <div className="empty">No orders found</div>
         ) : (
           filteredOrders.map(order => (
@@ -198,89 +303,173 @@ function App() {
           ))
         )}
       </main>
-
-      {/* Order Detail Modal - Customer info and address copy */}
+      
+      {/* Order Detail Modal - Redesigned */}
       {selectedOrder && (
         <div className="modal-overlay" onClick={closeOrderDetail}>
-          <div className="modal order-detail-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Order #{selectedOrder.order_id}</h2>
-              <button className="modal-close" onClick={closeOrderDetail}>×</button>
+          <div 
+            className="modal order-detail-modal" 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ 
+              maxHeight: '90vh', 
+              display: 'flex', 
+              flexDirection: 'column',
+              width: '420px',
+              maxWidth: '95vw'
+            }}
+          >
+            {/* Header: Order # and Total */}
+            <div className="modal-header" style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              padding: '16px 20px',
+              backgroundColor: '#f8f9fa',
+              borderBottom: '1px solid #e0e0e0'
+            }}>
+              <h2 style={{ margin: 0, fontSize: '20px' }}>Order #{selectedOrder.order_id}</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#28a745' }}>
+                  ${parseFloat(selectedOrder.order_total || 0).toFixed(2)}
+                </span>
+                <button 
+                  className="modal-close" 
+                  onClick={closeOrderDetail}
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    border: 'none',
+                    backgroundColor: '#eee',
+                    cursor: 'pointer',
+                    fontSize: '18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >×</button>
+              </div>
             </div>
-            <div className="modal-body">
-              {/* Customer Info with Copy buttons */}
-              <div className="detail-section">
-                <h3>Customer - Click to Copy</h3>
-                <div className="copy-field" onClick={() => navigator.clipboard.writeText(selectedOrder.company_name || selectedOrder.customer_name || '')}>
-                  <span className="label">Name:</span>
-                  <span className="value">{selectedOrder.company_name || selectedOrder.customer_name}</span>
-                  <span className="copy-icon">📋</span>
+            
+            <div className="modal-body" style={{ 
+              flex: 1, 
+              display: 'flex', 
+              flexDirection: 'column', 
+              overflow: 'hidden',
+              padding: '16px'
+            }}>
+              {/* Order Details Section */}
+              <div style={{ 
+                border: '1px solid #e0e0e0', 
+                borderRadius: '6px', 
+                padding: '12px 14px',
+                marginBottom: '12px',
+                backgroundColor: '#fff'
+              }}>
+                {/* Row 1: Order Details label | Company Name */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Order Details</span>
+                  <span style={{ fontSize: '12px', color: '#333' }}>
+                    {selectedOrder.company_name || selectedOrder.customer_name}
+                  </span>
                 </div>
-                <div className="copy-field" onClick={() => navigator.clipboard.writeText(selectedOrder.street || '')}>
-                  <span className="label">Street:</span>
-                  <span className="value">{selectedOrder.street}</span>
-                  <span className="copy-icon">📋</span>
+                
+                {/* Row 2: Address */}
+                <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px' }}>
+                  {formatAddress(selectedOrder)}
                 </div>
-                <div className="copy-field" onClick={() => navigator.clipboard.writeText(selectedOrder.city || '')}>
-                  <span className="label">City:</span>
-                  <span className="value">{selectedOrder.city}</span>
-                  <span className="copy-icon">📋</span>
+                
+                {/* Row 3: Date | Days Open */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '13px', color: '#333' }}>
+                    Date: {new Date(selectedOrder.order_date).toLocaleDateString()}
+                  </span>
+                  <span style={{ fontSize: '13px', color: '#333' }}>
+                    Days Open: <strong>{selectedOrder.days_open}</strong>
+                  </span>
                 </div>
-                <div className="copy-field" onClick={() => navigator.clipboard.writeText(selectedOrder.state || '')}>
-                  <span className="label">State:</span>
-                  <span className="value">{selectedOrder.state}</span>
-                  <span className="copy-icon">📋</span>
-                </div>
-                <div className="copy-field" onClick={() => navigator.clipboard.writeText(selectedOrder.zip_code || '')}>
-                  <span className="label">ZIP:</span>
-                  <span className="value">{selectedOrder.zip_code}</span>
-                  <span className="copy-icon">📋</span>
-                </div>
-                <div className="copy-field" onClick={() => navigator.clipboard.writeText(selectedOrder.phone || '')}>
-                  <span className="label">Phone:</span>
-                  <span className="value">{selectedOrder.phone}</span>
-                  <span className="copy-icon">📋</span>
-                </div>
-                <div className="copy-field" onClick={() => navigator.clipboard.writeText(selectedOrder.email || '')}>
-                  <span className="label">Email:</span>
-                  <span className="value">{selectedOrder.email}</span>
-                  <span className="copy-icon">📋</span>
+                
+                {/* Row 4: Status | Generate AI Summary Button */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', color: '#333' }}>
+                    Status: {STATUS_MAP[selectedOrder.current_status]?.label || selectedOrder.current_status}
+                  </span>
+                  <button
+                    onClick={generateComprehensiveSummary}
+                    disabled={summaryLoading}
+                    style={{
+                      padding: '5px 10px',
+                      backgroundColor: summaryLoading ? '#ccc' : '#28a745',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: summaryLoading ? 'not-allowed' : 'pointer',
+                      fontSize: '11px',
+                      fontWeight: '500'
+                    }}
+                  >
+                    {summaryLoading ? 'Generating...' : comprehensiveSummary ? 'Regenerate AI Summary' : 'Generate AI Summary'}
+                  </button>
                 </div>
               </div>
-
-              {/* Order Info */}
-              <div className="detail-section">
-                <h3>Order Details</h3>
-                <p>Total: ${parseFloat(selectedOrder.order_total || 0).toFixed(2)}</p>
-                <p>Date: {new Date(selectedOrder.order_date).toLocaleDateString()}</p>
-                <p>Days Open: {selectedOrder.days_open}</p>
-                <p>Status: {selectedOrder.current_status}</p>
-              </div>
-
-              {/* Shipments */}
-              {selectedOrder.shipments && selectedOrder.shipments.length > 0 && (
-                <div className="detail-section">
-                  <h3>Shipments</h3>
-                  {selectedOrder.shipments.map((shipment, i) => (
-                    <div key={i} className="shipment-detail">
-                      <strong>{shipment.warehouse}</strong>
-                      <span>{shipment.status || 'pending'}</span>
-                      <span>{shipment.ship_method || 'Not set'}</span>
-                      <button 
-                        className="btn btn-sm"
-                        onClick={() => openShippingManager(shipment, selectedOrder)}
-                      >
-                        Manage Shipping
-                      </button>
+              
+              {/* AI Analysis Section */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '250px' }}>
+                <h3 style={{ margin: '0 0 8px 0', fontSize: '12px', fontWeight: 'bold', color: '#666' }}>
+                  AI Analysis
+                </h3>
+                
+                {/* Summary Content Area */}
+                <div style={{ 
+                  flex: 1, 
+                  backgroundColor: '#f8f9fa', 
+                  borderRadius: '6px', 
+                  padding: '14px',
+                  overflow: 'auto',
+                  minHeight: '220px'
+                }}>
+                  {summaryLoading ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ 
+                          width: '36px', 
+                          height: '36px', 
+                          border: '3px solid #e0e0e0',
+                          borderTop: '3px solid #28a745',
+                          borderRadius: '50%',
+                          animation: 'spin 1s linear infinite',
+                          margin: '0 auto 12px'
+                        }}></div>
+                        <p style={{ color: '#666', margin: 0, fontSize: '13px' }}>Generating comprehensive analysis...</p>
+                      </div>
                     </div>
-                  ))}
+                  ) : comprehensiveSummary ? (
+                    <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', fontSize: '13px' }}>
+                      {comprehensiveSummary}
+                    </div>
+                  ) : (
+                    <div style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      height: '100%',
+                      color: '#999'
+                    }}>
+                      <p style={{ margin: 0, textAlign: 'center', fontSize: '13px', lineHeight: '1.6' }}>
+                        Click "Generate AI Summary" above to create<br/>
+                        a comprehensive AI analysis of this order<br/>
+                        including all history and communications.
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
       )}
-
+      
       {/* Shipping Manager Modal */}
       {shippingModal && (
         <div className="modal-overlay shipping-modal-overlay" onClick={closeShippingManager}>
@@ -301,6 +490,14 @@ function App() {
           </div>
         </div>
       )}
+      
+      {/* CSS for spinner animation */}
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   )
 }
