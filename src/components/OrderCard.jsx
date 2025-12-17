@@ -1,7 +1,7 @@
 /**
  * OrderCard.jsx
  * Display a single order with status, customer info, shipments
- * v5.10.1 - Colored warehouse pills + editable notes
+ * v5.11.0 - Alert background colors + clock icon for shipped orders
  */
 
 import { useState } from 'react'
@@ -36,6 +36,24 @@ const SHIPMENT_STATUS_COLORS = {
   'ready_ship': { color: '#4caf50', label: 'Ready to Ship' },       // Green
   'shipped': { color: '#607d8b', label: 'Shipped' },                // Blue-gray
   'delivered': { color: '#9e9e9e', label: 'Delivered' }             // Gray
+}
+
+// Alert background colors
+const ALERT_BACKGROUNDS = {
+  'warning': '#FFFACD',   // Light yellow
+  'critical': '#FFB6C1'   // Light pink/red
+}
+
+// Alert type labels
+const ALERT_TYPE_LABELS = {
+  'out_of_stock': '⚠️ OUT OF STOCK',
+  'backorder': '⚠️ BACKORDER',
+  'inventory_issue': '⚠️ INVENTORY ISSUE',
+  'no_action_after_payment': '⏰ NO ACTION - PAID',
+  'shipped_no_payment': '💰 SHIPPED - NO PAYMENT',
+  'no_response': '📧 NO WAREHOUSE RESPONSE',
+  'not_available': '⚠️ NOT AVAILABLE',
+  'discontinued': '⚠️ DISCONTINUED'
 }
 
 const getAgeLabel = (orderDate) => {
@@ -166,8 +184,48 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
     }
   }
 
+  // Calculate days until archive for shipped orders
+  const getShippedDaysRemaining = () => {
+    const shippedShipments = (order.shipments || []).filter(s => s.status === 'shipped' && s.clock_started_at)
+    if (shippedShipments.length === 0) return null
+    
+    // Get the most recent clock start
+    const latestClock = shippedShipments.reduce((latest, s) => {
+      const clockDate = new Date(s.clock_started_at)
+      return clockDate > latest ? clockDate : latest
+    }, new Date(0))
+    
+    const daysSince = Math.floor((new Date() - latestClock) / (1000 * 60 * 60 * 24))
+    return Math.max(0, 5 - daysSince)
+  }
+
+  const daysRemaining = getShippedDaysRemaining()
+  const alertBackground = order.alert_level ? ALERT_BACKGROUNDS[order.alert_level] : null
+  const alertLabel = order.alert_type ? ALERT_TYPE_LABELS[order.alert_type] : null
+
   return (
-    <div className="order-card" style={{ borderLeftColor: status.color }}>
+    <div 
+      className="order-card" 
+      style={{ 
+        borderLeftColor: status.color,
+        backgroundColor: alertBackground || undefined
+      }}
+    >
+      {/* Alert Banner */}
+      {alertLabel && (
+        <div style={{
+          backgroundColor: order.alert_level === 'critical' ? '#d32f2f' : '#f57c00',
+          color: 'white',
+          padding: '4px 12px',
+          fontSize: '12px',
+          fontWeight: 'bold',
+          marginBottom: '8px',
+          borderRadius: '4px'
+        }}>
+          {alertLabel}
+        </div>
+      )}
+      
       {/* Header */}
       <div className="order-header">
         <div className="order-id" onClick={() => onOpenDetail(order)}>
@@ -240,11 +298,19 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
               const shipmentStatus = shipment?.status || 'needs_order'
               const statusInfo = SHIPMENT_STATUS_COLORS[shipmentStatus] || SHIPMENT_STATUS_COLORS['needs_order']
               
+              // Calculate days remaining for this shipment's clock
+              let clockDays = null
+              if (shipment?.status === 'shipped' && shipment?.clock_started_at) {
+                const clockDate = new Date(shipment.clock_started_at)
+                const daysSince = Math.floor((new Date() - clockDate) / (1000 * 60 * 60 * 24))
+                clockDays = Math.max(0, 5 - daysSince)
+              }
+              
               return (
                 <span 
                   key={i} 
                   className="warehouse-tag"
-                  title={statusInfo.label}
+                  title={statusInfo.label + (clockDays !== null ? ` (${clockDays} days to archive)` : '')}
                   style={{
                     backgroundColor: statusInfo.color + '20',
                     color: statusInfo.color,
@@ -252,10 +318,21 @@ const OrderCard = ({ order, onOpenDetail, onOpenShippingManager, onUpdate }) => 
                     padding: '2px 8px',
                     borderRadius: '12px',
                     fontSize: '12px',
-                    fontWeight: '500'
+                    fontWeight: '500',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
                   }}
                 >
                   {wh}
+                  {clockDays !== null && (
+                    <span style={{ 
+                      fontSize: '10px',
+                      color: clockDays <= 1 ? '#4caf50' : clockDays <= 3 ? '#ff9800' : '#607d8b'
+                    }}>
+                      ⏱{clockDays}d
+                    </span>
+                  )}
                 </span>
               )
             })}
